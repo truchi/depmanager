@@ -6,7 +6,6 @@
 
 function main {
   echo depmanager
-  echo lol
 }
 
 main
