@@ -1,12 +1,332 @@
-#!/usr/bin/zsh
+#!/bin/bash
 #
 # Dependencies managment
 # Author: Romain TRUCHI (https://github.com/truchi)
 #
+# # depmanager
+#
+# Checks, diffs, installs or updates your dependencies.
+# System, NodeJS, Rust.
+#
+# # Usage
+#
+# $ depmanager check --directory ~/my/dir --node ~/my/node.csv
+#
+# # Configuration
+#
+# `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
+# Defaults to "$HOME/.config/depmanager"
 
-function main {
-  echo depmanager
+declare -A DEFAULT
+DEFAULT[DIR]="$HOME/.config/depmanager"
+DEFAULT[SYSTEM]="system.csv"
+DEFAULT[NODE]="node.csv"
+DEFAULT[RUST]="rust.csv"
+
+declare -A ARG
+ARG[DIR]=
+ARG[SYSTEM]=
+ARG[NODE]=
+ARG[RUST]=
+
+COMMAND=
+QUIET=false
+YES=false
+
+TYPES=(SYSTEM NODE RUST)
+
+NO_COLOR=$(tput sgr0)
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+BLUE=$(tput setaf 4)
+MAGENTA=$(tput setaf 5)
+CYAN=$(tput setaf 6)
+WHITE=$(tput setaf 7)
+
+CWD=$(pwd)
+
+print_date() {
+  echo ${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}
 }
 
-main
+print_error() {
+  echo $(print_date) "${RED}✗${NO_COLOR} $@"
+}
+
+print_success() {
+  echo $(print_date) "${GREEN}✔${NO_COLOR} $@"
+}
+
+print_info() {
+  echo $(print_date) "${BLUE}${BOLD}i${NO_COLOR} $@"
+}
+
+print_confirm() {
+  echo $(print_date) "${YELLOW}${BOLD}?${NO_COLOR} $@ ${YELLOW}(Y)${NO_COLOR}"
+}
+
+print_version() {
+  echo ${YELLOW}v0.0.1${NO_COLOR}
+}
+
+print_summary () {
+  echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print_version)
+${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
+}
+
+print_help() {
+  local command=$(basename $0)
+
+  echo "${BOLD}${BLUE}Usage:${NO_COLOR}
+  ${BOLD}${GREEN}$command${NO_COLOR} [-h|--version]
+  ${BOLD}${GREEN}$command${NO_COLOR} [-v|--help]
+  ${BOLD}${GREEN}$command${NO_COLOR} <command> [options]
+
+${BOLD}${BLUE}Description:${NO_COLOR}
+  ${WHITE}Manages your dependencies.
+
+  List packages you depend on in CSV files (system.csv, node.csv, rust.csv).
+  Export \$DEPMANAGER_DIR (containing these files) environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
+
+${BOLD}${BLUE}Commands:${NO_COLOR}
+  c${WHITE},${NO_COLOR} check                 ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
+  d${WHITE},${NO_COLOR} diff                  ${WHITE}List installed packages yet not in the CSV files${NO_COLOR}
+  i${WHITE},${NO_COLOR} install               ${WHITE}Installs packages in the CSV files${NO_COLOR}
+  u${WHITE},${NO_COLOR} update                ${WHITE}Updates packages in the CSV files${NO_COLOR}
+
+${BOLD}${BLUE}Options:${NO_COLOR}
+  -d${WHITE},${NO_COLOR} --dir <path>         ${WHITE}Blah${NO_COLOR}
+  -s${WHITE},${NO_COLOR} --system <path|url>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --node <path|url>    ${WHITE}Blah${NO_COLOR}
+  -r${WHITE},${NO_COLOR} --rust <path|url>    ${WHITE}Blah${NO_COLOR}
+  -q${WHITE},${NO_COLOR} --quiet              ${WHITE}Blah${NO_COLOR}
+  -y${WHITE},${NO_COLOR} --yes                ${WHITE}Blah${NO_COLOR}
+
+${BOLD}${BLUE}Links:${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}             ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Website${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Documentation${NO_COLOR}          ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+"
+}
+
+#
+# Returns true if $1 starts with /, false otherwise
+#
+is_absolute() {
+  if [[ "$1" =~ / ]]; then return 0
+  else return 1
+  fi
+}
+
+#
+# Returns true if $1 starts with https?://, false otherwise
+#
+is_url() {
+  if [[ "$1" =~ https?:// ]]; then return 0
+  else return 1
+  fi
+}
+
+#
+# Returns true is $1 is set, false otherwise
+#
+is_set() {
+  if [[ ! -z "$1" ]]; then return 0
+  else return 1
+  fi
+}
+
+#
+# Sets `ARG[DIR]` according to (in this precedence order):
+# - cli arg      (relative to current working directory)
+# - env variable (relative to home)
+# - default path
+# Assumes `CWD` is set
+#
+get_dir() {
+  local dir=""
+
+  # If dir is given in args
+  if is_set "${ARG[DIR]}"; then
+    # Use dir arg
+    dir="${ARG[DIR]}"
+
+    # Relative to current working dir
+    if ! is_absolute "$dir"; then
+      dir="$CWD/$dir"
+    fi
+  else
+    # If env variable is defined
+    if is_set "$DEPMANAGER_DIR"; then
+      # Use user's dir
+      dir=$DEPMANAGER_DIR
+
+      # Relative to home
+      if ! is_absolute "$dir"; then
+        dir="$HOME/$dir"
+      fi
+    else
+      # Use default dir
+      dir=${DEFAULT[DIR]}
+    fi
+  fi
+
+  ARG[DIR]=$dir
+}
+
+#
+# Sets `ARG[$1]` according to (in this precedence order):
+# - cli arg          (relative to current workin directory)
+# - default variable (relative to `ARG[DIR]`)
+# Assumes `CWD` is set
+#
+make_path() {
+  local type=$1
+  local file=""
+  # local dir="${ARG[DIR]}"
+  # local path="${ARG[$type]}"
+
+  # If file is given in args
+  if is_set "${ARG[$type]}";then
+    # Use file arg
+    file="${ARG[$type]}"
+
+    # Relative to current working dir
+    if ! is_absolute "$file" && ! is_url "$file"; then
+      file="$CWD/$file"
+    fi
+  else
+    # Use default file, relative to ARG[DIR]
+    file="${ARG[DIR]}/${DEFAULT[$type]}"
+  fi
+
+  ARG[$type]=$file
+}
+
+#
+# Checks the existence of file/url ${ARG[$1]}
+# Sets it to false when not
+#
+check_file() {
+  local type=$1
+  local file="${ARG[$type]}"
+
+  if is_url "$file"; then
+    if ! wget -q --spider $file; then
+      ARG[$type]=false
+    fi
+  elif [[ ! -f "$file" ]]; then
+    ARG[$type]=false
+  fi
+}
+
+get_deps() {
+  local type=$1                    # SYSTEM or NODE or RUST
+  local file="$DIR/${FILE[$type]}"
+
+  echo type: $type
+  echo file: $file
+
+  if [[ -f $file ]]; then
+    echo "It exitsts"
+  else
+    echo "It dont exitsts"
+  fi
+}
+
+#
+# Parses args, filling the appropriate global variables
+#
+parse_args() {
+  # Print summary, version and help
+  if [[ $# == 0 ]]; then
+    print_summary
+    echo
+    print_help
+    exit
+  elif [[ $# == 1 ]]; then
+    if [[ $1 == "--version" || $1 == "-v" ]]; then
+      print_version
+      exit
+    elif [[ $1 == "--help" || $1 == "-h" ]]; then
+      print_help
+      exit
+    fi
+  fi
+
+  # Get command
+  if [[ $1 == "check" || $1 == "c" ]]; then
+    COMMAND="check"
+  elif [[ $1 == "diff" || $1 == "d" ]]; then
+    COMMAND="diff"
+  elif [[ $1 == "install" || $1 == "i" ]]; then
+    COMMAND="install"
+  elif [[ $1 == "update" || $1 == "u" ]]; then
+    COMMAND="update"
+  else
+    print_error Unknown command: $1
+    exit
+  fi
+
+  # Get options
+  while [[ $# -gt 1 ]]; do
+    case $2 in
+      -d|--dir)
+        ARG[DIR]="$3"; shift; shift;;
+      -s|--system)
+        ARG[SYSTEM]="$3"; shift; shift;;
+      -n|--node)
+        ARG[NODE]="$3"; shift; shift;;
+      -r|--rust)
+        ARG[RUST]="$3"; shift; shift;;
+      -q|--quiet)
+        QUIET=true; shift;;
+      -y|--yes)
+        YES=true; shift;;
+      *)
+        print_error Unknown option: $key
+        exit
+    esac
+  done
+}
+
+#
+# Main
+# Parses arguments, resolves files, run specified command
+#
+main() {
+  parse_args $@
+  get_dir
+
+  for type in "${TYPES[@]}"; do
+    make_path $type
+    check_file $type
+  done
+
+  echo system:"${ARG[SYSTEM]}"
+  echo node:"${ARG[NODE]}"
+  echo rust:"${ARG[RUST]}"
+
+  # if [[ $QUIET == false ]]; then
+    # echo lol
+  # else
+    # echo suposed quiet
+  # fi
+
+  # for a in "${name[@]}"; do
+    # echo $a
+  # done
+
+  # get_dir
+  # echo $DIR
+
+  # get_deps SYSTEM
+  # echo SYSTEM: $SYSTEM
+}
+
+# Run
+main $@
+
 
