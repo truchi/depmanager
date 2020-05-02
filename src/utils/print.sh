@@ -8,11 +8,18 @@ print_error() {
   echo "$(print_date) ${RED}✗${NO_COLOR} $@"
 }
 
+print_warning() {
+  if $QUIET; then return; fi
+  echo "$(print_date) ${YELLOW}!${NO_COLOR} $@"
+}
+
 print_success() {
+  if $QUIET; then return; fi
   echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
 }
 
 print_info() {
+  if $QUIET; then return; fi
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 

@@ -1,22 +1,40 @@
 #!/bin/bash
 
 declare -A DEFAULT
-DEFAULT[DIR]="$HOME/.config/depmanager"
-DEFAULT[SYSTEM]="system.csv"
-DEFAULT[NODE]="node.csv"
-DEFAULT[RUST]="rust.csv"
+DEFAULT[dir]="$HOME/.config/depmanager"
+DEFAULT[apt]="apt.csv"
+DEFAULT[yum]="yum.csv"
+DEFAULT[pacman]="pacman.csv"
+DEFAULT[node]="node.csv"
+DEFAULT[rust]="rust.csv"
 
 declare -A ARG
-ARG[DIR]=
-ARG[SYSTEM]=
-ARG[NODE]=
-ARG[RUST]=
+ARG[dir]=
+ARG[apt]=
+ARG[yum]=
+ARG[pacman]=
+ARG[node]=
+ARG[rust]=
+
+declare -A FOUND
+FOUND[apt]=
+FOUND[yum]=
+FOUND[pacman]=
+FOUND[node]=
+FOUND[rust]=
+
+declare -A DETECT
+ARG[apt]=
+ARG[yum]=
+ARG[pacman]=
+ARG[node]=
+ARG[rust]=
 
 COMMAND=
 QUIET=false
 YES=false
 
-TYPES=(SYSTEM NODE RUST)
+TYPES=(apt yum pacman node rust)
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)

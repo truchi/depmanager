@@ -64,14 +64,39 @@ main() {
   parse_args $@
   get_dir
 
+  local dir="${ARG[dir]}"
+  print_info Depmanager directory: $dir
+
   for type in "${TYPES[@]}"; do
-    make_path $type
-    check_file $type
+    make_path "$type"
+    check_file "$type"
+    detect_manager "$type"
+
+    local message=""
+    local file="${ARG[$type]}"
+    local found="${FOUND[$type]}"
+    local detect="${DETECT[$type]}"
+
+    if $detect; then
+      message="manager found, "
+    else
+      message="manager NOT found, "
+    fi
+
+    if $found; then
+      message="$message file found ($file)."
+    else
+      message="$message file NOT found ($file)."
+    fi
+
+    if $detect && $found; then
+      print_success $type: $message Will proceed.
+    else
+      print_warning $type: $message Will NOT proceed.
+    fi
   done
 
-  echo system:"${ARG[SYSTEM]}"
-  echo node:"${ARG[NODE]}"
-  echo rust:"${ARG[RUST]}"
+
 
   # if [[ $QUIET == false ]]; then
     # echo lol

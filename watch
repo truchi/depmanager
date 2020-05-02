@@ -16,7 +16,7 @@ function watch {
   ./build
   echo ${BLUE}Watching ${CYAN}$SRC${NO_COLOR}
 
-  while inotifywait -qq -e modify $SRC; do
+  while inotifywait -qq -r -e modify $SRC; do
     clear
     echo ${YELLOW}Detected changes ${MAGENTA}$(date)${NO_COLOR}
     ./build

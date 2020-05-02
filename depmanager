@@ -17,23 +17,45 @@
 # `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
 # Defaults to "$HOME/.config/depmanager"
 
+###################################################
+# vars
+###################################################
+
 declare -A DEFAULT
-DEFAULT[DIR]="$HOME/.config/depmanager"
-DEFAULT[SYSTEM]="system.csv"
-DEFAULT[NODE]="node.csv"
-DEFAULT[RUST]="rust.csv"
+DEFAULT[dir]="$HOME/.config/depmanager"
+DEFAULT[apt]="apt.csv"
+DEFAULT[yum]="yum.csv"
+DEFAULT[pacman]="pacman.csv"
+DEFAULT[node]="node.csv"
+DEFAULT[rust]="rust.csv"
 
 declare -A ARG
-ARG[DIR]=
-ARG[SYSTEM]=
-ARG[NODE]=
-ARG[RUST]=
+ARG[dir]=
+ARG[apt]=
+ARG[yum]=
+ARG[pacman]=
+ARG[node]=
+ARG[rust]=
+
+declare -A FOUND
+FOUND[apt]=
+FOUND[yum]=
+FOUND[pacman]=
+FOUND[node]=
+FOUND[rust]=
+
+declare -A DETECT
+ARG[apt]=
+ARG[yum]=
+ARG[pacman]=
+ARG[node]=
+ARG[rust]=
 
 COMMAND=
 QUIET=false
 YES=false
 
-TYPES=(SYSTEM NODE RUST)
+TYPES=(apt yum pacman node rust)
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
@@ -47,6 +69,10 @@ WHITE=$(tput setaf 7)
 
 CWD=$(pwd)
 
+###################################################
+# utils/print
+###################################################
+
 print_date() {
   echo ${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}
 }
@@ -55,11 +81,18 @@ print_error() {
   echo "$(print_date) ${RED}✗${NO_COLOR} $@"
 }
 
+print_warning() {
+  if $QUIET; then return; fi
+  echo "$(print_date) ${YELLOW}!${NO_COLOR} $@"
+}
+
 print_success() {
+  if $QUIET; then return; fi
   echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
 }
 
 print_info() {
+  if $QUIET; then return; fi
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
@@ -111,12 +144,18 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 "
 }
 
+###################################################
+# utils/helpers
+###################################################
+
 #
 # Returns true if $1 starts with /, false otherwise
 #
 is_absolute() {
-  if [[ "$1" =~ / ]]; then return 0
-  else return 1
+  if [[ "$1" =~ / ]]; then
+    return 0
+  else
+    return 1
   fi
 }
 
@@ -124,8 +163,10 @@ is_absolute() {
 # Returns true if $1 starts with https?://, false otherwise
 #
 is_url() {
-  if [[ "$1" =~ https?:// ]]; then return 0
-  else return 1
+  if [[ "$1" =~ https?:// ]]; then
+    return 0
+  else
+    return 1
   fi
 }
 
@@ -133,8 +174,10 @@ is_url() {
 # Returns true is $1 is set, false otherwise
 #
 is_set() {
-  if [[ ! -z "$1" ]]; then return 0
-  else return 1
+  if [[ ! -z "$1" ]]; then
+    return 0
+  else
+    return 1
   fi
 }
 
@@ -142,8 +185,10 @@ is_set() {
 # Returns true if file $1 exists, false otherwise
 #
 file_exists() {
-  if [[ -f "$1" ]]; then return 0
-  else return 1
+  if [[ -f "$1" ]]; then
+    return 0
+  else
+    return 1
   fi
 }
 
@@ -151,13 +196,30 @@ file_exists() {
 # Returns true if url $1 exists, false otherwise
 #
 url_exists() {
-  if ! wget -q --spider "$1"; then return 0
-  else return 1
+  if ! wget -q --spider "$1"; then
+    return 0
+  else
+    return 1
   fi
 }
 
 #
-# Sets `ARG[DIR]` according to (in this precedence order):
+# Returns true if $1 is found on the system, false otherwise
+#
+command_exists() {
+  if command -v "$1" >/dev/null 2>&1; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+###################################################
+# utils/functions
+###################################################
+
+#
+# Sets `ARG[dir]` according to (in this precedence order):
 # - cli arg      (relative to current working directory)
 # - env variable (relative to home)
 # - default path
@@ -167,9 +229,9 @@ get_dir() {
   local dir=""
 
   # If dir is given in args
-  if is_set "${ARG[DIR]}"; then
+  if is_set "${ARG[dir]}"; then
     # Use dir arg
-    dir="${ARG[DIR]}"
+    dir="${ARG[dir]}"
 
     # Relative to current working dir
     if ! is_absolute "$dir"; then
@@ -187,17 +249,17 @@ get_dir() {
       fi
     else
       # Use default dir
-      dir="${DEFAULT[DIR]}"
+      dir="${DEFAULT[dir]}"
     fi
   fi
 
-  ARG[DIR]="$dir"
+  ARG[dir]="$dir"
 }
 
 #
 # Sets `ARG[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
-# - default variable (relative to `ARG[DIR]`)
+# - default variable (relative to `ARG[dir]`)
 # Assumes `CWD` is set
 #
 make_path() {
@@ -214,29 +276,59 @@ make_path() {
       file="$CWD/$file"
     fi
   else
-    # Use default file, relative to ARG[DIR]
-    file="${ARG[DIR]}/${DEFAULT[$type]}"
+    # Use default file, relative to ARG[dir]
+    file="${ARG[dir]}/${DEFAULT[$type]}"
   fi
 
   ARG[$type]="$file"
 }
 
 #
-# Checks the existence of file/url ${ARG[$1]}
-# Sets it to false when not
+# Sets `FOUND[$1]` to true if file/url ${ARG[$1]} exists, false otherwise
 #
 check_file() {
   local type="$1"
   local file="${ARG[$type]}"
 
-  if is_url "$file"; then
-    if ! url_exists "$file"; then
-      ARG[$type]=false
-    fi
-  elif file_exists "$file"; then
-    ARG[$type]=false
+  if is_url "$file" && ! url_exists "$file" ; then
+    FOUND[$type]=false
+  elif ! file_exists "$file"; then
+    FOUND[$type]=false
   fi
 }
+
+#
+# Sets `DETECT$[$1]` to true if the manager is found on the system,
+# to false otherwise
+#
+detect_manager() {
+  local type="$1"
+
+  if command_exists "${type}_detect" && ${type}_detect; then
+    DETECT[$type]=true
+  else
+    DETECT[$type]=false
+  fi
+}
+
+###################################################
+# managers/apt
+###################################################
+
+#
+# Returns true if apt is found on the system, false otherwise
+#
+apt_detect() {
+  if command_exists apt; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+###################################################
+# main
+###################################################
 
 #
 # Parses args, filling the appropriate global variables
@@ -302,14 +394,39 @@ main() {
   parse_args $@
   get_dir
 
+  local dir="${ARG[dir]}"
+  print_info Depmanager directory: $dir
+
   for type in "${TYPES[@]}"; do
-    make_path $type
-    check_file $type
+    make_path "$type"
+    check_file "$type"
+    detect_manager "$type"
+
+    local message=""
+    local file="${ARG[$type]}"
+    local found="${FOUND[$type]}"
+    local detect="${DETECT[$type]}"
+
+    if $detect; then
+      message="manager found, "
+    else
+      message="manager NOT found, "
+    fi
+
+    if $found; then
+      message="$message file found ($file)."
+    else
+      message="$message file NOT found ($file)."
+    fi
+
+    if $detect && $found; then
+      print_success $type: $message Will proceed.
+    else
+      print_warning $type: $message Will NOT proceed.
+    fi
   done
 
-  echo system:"${ARG[SYSTEM]}"
-  echo node:"${ARG[NODE]}"
-  echo rust:"${ARG[RUST]}"
+
 
   # if [[ $QUIET == false ]]; then
     # echo lol

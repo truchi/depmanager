@@ -12,7 +12,16 @@ WHITE=$(tput setaf 7)
 SRC='./src'
 OUT='./depmanager'
 
-FILES=(header vars print functions main)
+SEPARATOR="###################################################"
+FILES=(
+  header 
+  vars 
+  utils/print
+  utils/helpers
+  utils/functions
+  managers/apt
+  main
+)
 
 function build {
   local out=""
@@ -32,6 +41,11 @@ function build {
 
     # Remove leading newlines
     content=$(echo $content | sed -e '/./,$!d')
+
+
+    if [[ "$i" != 0 ]]; then
+      content="$SEPARATOR\n# ${file}\n$SEPARATOR\n\n$content"
+    fi
 
     # Append to output
     out="$out$content\n\n"
