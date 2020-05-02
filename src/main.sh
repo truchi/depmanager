@@ -59,17 +59,19 @@ parse_args() {
           exit
         fi
 
-        if [[ "$2" == *"Q"* ]]; then
+        local flags="${2:1}"
+        local non_flags=$(echo "$flags" | sed 's/[QYS]//g')
+
+        if [[ "$flags" == *"Q"* ]]; then
           QUIET=true
         fi
-        if [[ "$2" == *"Y"* ]]; then
+        if [[ "$flags" == *"Y"* ]]; then
           YES=true
         fi
-        if [[ "$2" == *"S"* ]]; then
+        if [[ "$flags" == *"S"* ]]; then
           SIMULATE=true
         fi
 
-        local non_flags=$(echo "$2" | sed 's/[QYS]//g')
         if is_set "$non_flags"; then
           print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
           exit

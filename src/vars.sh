@@ -39,7 +39,7 @@ COMMAND=
 DIR=
 QUIET=false
 YES=false
-SIMULATE=true # TODO should be false in prod
+SIMULATE=false
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
