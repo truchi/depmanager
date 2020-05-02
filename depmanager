@@ -21,41 +21,46 @@
 # vars
 ###################################################
 
+SYSTEM_TYPES=(apt yum pacman)
+NON_SYSTEM_TYPES=(node rust)
+TYPES=("${SYSTEM_TYPES[@]}" "${NON_SYSTEM_TYPES[@]}")
+
 declare -A DEFAULT
 DEFAULT[dir]="$HOME/.config/depmanager"
-DEFAULT[apt]="apt.csv"
-DEFAULT[yum]="yum.csv"
-DEFAULT[pacman]="pacman.csv"
-DEFAULT[node]="node.csv"
-DEFAULT[rust]="rust.csv"
+for type in "${TYPES[@]}"; do
+  DEFAULT[$type]="$type.csv"
+done
 
 declare -A ARG
-ARG[dir]=
-ARG[apt]=
-ARG[yum]=
-ARG[pacman]=
-ARG[node]=
-ARG[rust]=
+for type in "${TYPES[@]}"; do
+  ARG[$type]=
+done
+
+declare -A BYPASS
+for type in "${TYPES[@]}"; do
+  BYPASS[$type]=false
+done
 
 declare -A FOUND
-FOUND[apt]=
-FOUND[yum]=
-FOUND[pacman]=
-FOUND[node]=
-FOUND[rust]=
+for type in "${TYPES[@]}"; do
+  FOUND[$type]=false
+done
 
 declare -A DETECT
-ARG[apt]=
-ARG[yum]=
-ARG[pacman]=
-ARG[node]=
-ARG[rust]=
+for type in "${TYPES[@]}"; do
+  DETECT[$type]=false
+done
+
+declare -A PROCEED
+for type in "${TYPES[@]}"; do
+  PROCEED[$type]=false
+done
 
 COMMAND=
+DIR=
 QUIET=false
 YES=false
-
-TYPES=(apt yum pacman node rust)
+SIMULATE=true # TODO should be false in prod
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
@@ -97,7 +102,25 @@ print_info() {
 }
 
 print_confirm() {
-  echo "$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} $@ ${YELLOW}(Y)${NO_COLOR}"
+  if $YES; then
+    return 0
+  fi
+
+  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$1${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
+
+  read -p "$message " -n 1 -r
+
+  if [[ ! "$REPLY" =~ ^$ ]]
+  then
+    echo
+  fi
+
+  if [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+  then
+    return 0
+  else
+    return 1
+  fi
 }
 
 print_version() {
@@ -124,24 +147,54 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR (containing these files) environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  c${WHITE},${NO_COLOR} check                 ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
-  d${WHITE},${NO_COLOR} diff                  ${WHITE}List installed packages yet not in the CSV files${NO_COLOR}
-  i${WHITE},${NO_COLOR} install               ${WHITE}Installs packages in the CSV files${NO_COLOR}
-  u${WHITE},${NO_COLOR} update                ${WHITE}Updates packages in the CSV files${NO_COLOR}
+  c${WHITE},${NO_COLOR} check                       ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
+  d${WHITE},${NO_COLOR} diff                        ${WHITE}List installed packages yet not in the CSV files${NO_COLOR}
+  i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
+  u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
 
 ${BOLD}${BLUE}Options:${NO_COLOR}
-  -d${WHITE},${NO_COLOR} --dir <path>         ${WHITE}Blah${NO_COLOR}
-  -s${WHITE},${NO_COLOR} --system <path|url>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --node <path|url>    ${WHITE}Blah${NO_COLOR}
-  -r${WHITE},${NO_COLOR} --rust <path|url>    ${WHITE}Blah${NO_COLOR}
-  -q${WHITE},${NO_COLOR} --quiet              ${WHITE}Blah${NO_COLOR}
-  -y${WHITE},${NO_COLOR} --yes                ${WHITE}Blah${NO_COLOR}
+  -a${WHITE},${NO_COLOR} --apt <path|url|false>     ${WHITE}Blah${NO_COLOR}
+  -y${WHITE},${NO_COLOR} --yum <path|url|false>     ${WHITE}Blah${NO_COLOR}
+  -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --node <path|url|false>    ${WHITE}Blah${NO_COLOR}
+  -r${WHITE},${NO_COLOR} --rust <path|url|false>    ${WHITE}Blah${NO_COLOR}
+  -Q${WHITE},${NO_COLOR} --quiet                    ${WHITE}Blah${NO_COLOR}
+  -Y${WHITE},${NO_COLOR} --yes                      ${WHITE}Blah${NO_COLOR}
+  -S${WHITE},${NO_COLOR} --simulate                 ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
   ${WHITE}- Repository${NO_COLOR}             ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
   ${WHITE}- Website${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
   ${WHITE}- Documentation${NO_COLOR}          ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
 "
+}
+
+print_pre_proceed_message () {
+  for type in "${TYPES[@]}"; do
+    local message="${BOLD}$type${NO_COLOR}: "
+    local file="${ARG[$type]}"
+    local bypass="${BYPASS[$type]}"
+    local found="${FOUND[$type]}"
+    local proceed="${PROCEED[$type]}"
+
+    if $bypass; then
+      message="$message bypassed"
+    else
+      if $found; then
+        message="$message ${GREEN}✔${NO_COLOR} ($file)"
+      else
+        message="$message ${RED}✗${NO_COLOR} ($file)"
+      fi
+    fi
+
+    if $bypass; then
+      print_info $message
+    elif $proceed; then
+      print_success $message
+    else
+      print_warning $message
+    fi
+  done
 }
 
 ###################################################
@@ -196,7 +249,7 @@ file_exists() {
 # Returns true if url $1 exists, false otherwise
 #
 url_exists() {
-  if ! wget -q --spider "$1"; then
+  if wget -q --spider "$1"; then
     return 0
   else
     return 1
@@ -219,38 +272,25 @@ command_exists() {
 ###################################################
 
 #
-# Sets `ARG[dir]` according to (in this precedence order):
-# - cli arg      (relative to current working directory)
+# Sets `DIR` according to (in this precedence order):
 # - env variable (relative to home)
 # - default path
-# Assumes `CWD` is set
 #
 get_dir() {
   local dir=""
 
-  # If dir is given in args
-  if is_set "${ARG[dir]}"; then
-    # Use dir arg
-    dir="${ARG[dir]}"
+  # If env variable is defined
+  if is_set "$DEPMANAGER_DIR"; then
+    # Use user's dir
+    dir="$DEPMANAGER_DIR"
 
-    # Relative to current working dir
+    # Relative to home
     if ! is_absolute "$dir"; then
-      dir="$CWD/$dir"
+      dir="$HOME/$dir"
     fi
   else
-    # If env variable is defined
-    if is_set "$DEPMANAGER_DIR"; then
-      # Use user's dir
-      dir="$DEPMANAGER_DIR"
-
-      # Relative to home
-      if ! is_absolute "$dir"; then
-        dir="$HOME/$dir"
-      fi
-    else
-      # Use default dir
-      dir="${DEFAULT[dir]}"
-    fi
+    # Use default dir
+    dir="${DEFAULT[dir]}"
   fi
 
   ARG[dir]="$dir"
@@ -259,7 +299,7 @@ get_dir() {
 #
 # Sets `ARG[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
-# - default variable (relative to `ARG[dir]`)
+# - default variable (relative to `DIR`)
 # Assumes `CWD` is set
 #
 make_path() {
@@ -284,16 +324,14 @@ make_path() {
 }
 
 #
-# Sets `FOUND[$1]` to true if file/url ${ARG[$1]} exists, false otherwise
+# sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url)
 #
 check_file() {
   local type="$1"
   local file="${ARG[$type]}"
 
-  if is_url "$file" && ! url_exists "$file" ; then
-    FOUND[$type]=false
-  elif ! file_exists "$file"; then
-    FOUND[$type]=false
+  if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
+    FOUND[$type]=true
   fi
 }
 
@@ -367,22 +405,55 @@ parse_args() {
   # Get options
   while [[ $# -gt 1 ]]; do
     case "$2" in
-      -d|--dir)
-        ARG[DIR]="$3"; shift; shift;;
-      -s|--system)
-        ARG[SYSTEM]="$3"; shift; shift;;
+      -a|--apt)
+        ARG[apt]="$3"; shift; shift;;
+      -y|--yum)
+        ARG[yum]="$3"; shift; shift;;
+      -p|--pacman)
+        ARG[pacman]="$3"; shift; shift;;
       -n|--node)
-        ARG[NODE]="$3"; shift; shift;;
+        ARG[node]="$3"; shift; shift;;
       -r|--rust)
-        ARG[RUST]="$3"; shift; shift;;
-      -q|--quiet)
+        ARG[rust]="$3"; shift; shift;;
+      -Q|--quiet)
         QUIET=true; shift;;
-      -y|--yes)
+      -Y|--yes)
         YES=true; shift;;
+      -S|--simulate)
+        SIMULATE=true; shift;;
+      -*)
+        if [[ "$2" = "-" ]]; then
+          print_error "There might be an error in your command, found a lone '-'"
+          exit
+        fi
+
+        if [[ "$2" == *"Q"* ]]; then
+          QUIET=true
+        fi
+        if [[ "$2" == *"Y"* ]]; then
+          YES=true
+        fi
+        if [[ "$2" == *"S"* ]]; then
+          SIMULATE=true
+        fi
+
+        local non_flags=$(echo "$2" | sed 's/[QYS]//g')
+        if is_set "$non_flags"; then
+          print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
+          exit
+        fi
+
+        shift;;
       *)
-        print_error Unknown option: $key
+        print_error "Unknown option: ${BOLD}$2${NO_COLOR}"
         exit
     esac
+  done
+}
+
+proceed() {
+  for type in "${TYPES[@]}"; do
+    echo type:$type
   done
 }
 
@@ -393,56 +464,40 @@ parse_args() {
 main() {
   parse_args $@
   get_dir
-
-  local dir="${ARG[dir]}"
-  print_info Depmanager directory: $dir
+  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
 
   for type in "${TYPES[@]}"; do
-    make_path "$type"
-    check_file "$type"
-    detect_manager "$type"
-
-    local message=""
-    local file="${ARG[$type]}"
-    local found="${FOUND[$type]}"
-    local detect="${DETECT[$type]}"
-
-    if $detect; then
-      message="manager found, "
+    if [[ "${ARG[$type]}" = "false" ]]; then
+      BYPASS[$type]=true
     else
-      message="manager NOT found, "
+      make_path "$type"
+      check_file "$type"
     fi
 
-    if $found; then
-      message="$message file found ($file)."
-    else
-      message="$message file NOT found ($file)."
-    fi
-
-    if $detect && $found; then
-      print_success $type: $message Will proceed.
-    else
-      print_warning $type: $message Will NOT proceed.
+    if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
+      PROCEED[$type]=true
     fi
   done
 
+  for type in "${SYSTEM_TYPES[@]}"; do
+    detect_manager "$type"
+  done
 
+  print_pre_proceed_message
 
-  # if [[ $QUIET == false ]]; then
-    # echo lol
-  # else
-    # echo suposed quiet
-  # fi
+  local confirm_message="Proceed for $COMMAND?"
+  if $SIMULATE; then
+    confirm_message="Simulate $COMMAND?"
+  fi
 
-  # for a in "${name[@]}"; do
-    # echo $a
-  # done
+  if print_confirm "$confirm_message"; then
+    print_info Go!
+  else
+    print_info Bye!
+  fi
+  exit
 
-  # get_dir
-  # echo $DIR
-
-  # get_deps SYSTEM
-  # echo SYSTEM: $SYSTEM
+  # proceed
 }
 
 # Run

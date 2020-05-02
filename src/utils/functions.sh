@@ -1,38 +1,25 @@
 #!/bin/bash
 
 #
-# Sets `ARG[dir]` according to (in this precedence order):
-# - cli arg      (relative to current working directory)
+# Sets `DIR` according to (in this precedence order):
 # - env variable (relative to home)
 # - default path
-# Assumes `CWD` is set
 #
 get_dir() {
   local dir=""
 
-  # If dir is given in args
-  if is_set "${ARG[dir]}"; then
-    # Use dir arg
-    dir="${ARG[dir]}"
+  # If env variable is defined
+  if is_set "$DEPMANAGER_DIR"; then
+    # Use user's dir
+    dir="$DEPMANAGER_DIR"
 
-    # Relative to current working dir
+    # Relative to home
     if ! is_absolute "$dir"; then
-      dir="$CWD/$dir"
+      dir="$HOME/$dir"
     fi
   else
-    # If env variable is defined
-    if is_set "$DEPMANAGER_DIR"; then
-      # Use user's dir
-      dir="$DEPMANAGER_DIR"
-
-      # Relative to home
-      if ! is_absolute "$dir"; then
-        dir="$HOME/$dir"
-      fi
-    else
-      # Use default dir
-      dir="${DEFAULT[dir]}"
-    fi
+    # Use default dir
+    dir="${DEFAULT[dir]}"
   fi
 
   ARG[dir]="$dir"
@@ -41,7 +28,7 @@ get_dir() {
 #
 # Sets `ARG[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
-# - default variable (relative to `ARG[dir]`)
+# - default variable (relative to `DIR`)
 # Assumes `CWD` is set
 #
 make_path() {
@@ -66,16 +53,14 @@ make_path() {
 }
 
 #
-# Sets `FOUND[$1]` to true if file/url ${ARG[$1]} exists, false otherwise
+# sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url)
 #
 check_file() {
   local type="$1"
   local file="${ARG[$type]}"
 
-  if is_url "$file" && ! url_exists "$file" ; then
-    FOUND[$type]=false
-  elif ! file_exists "$file"; then
-    FOUND[$type]=false
+  if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
+    FOUND[$type]=true
   fi
 }
 

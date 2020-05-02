@@ -37,22 +37,55 @@ parse_args() {
   # Get options
   while [[ $# -gt 1 ]]; do
     case "$2" in
-      -d|--dir)
-        ARG[DIR]="$3"; shift; shift;;
-      -s|--system)
-        ARG[SYSTEM]="$3"; shift; shift;;
+      -a|--apt)
+        ARG[apt]="$3"; shift; shift;;
+      -y|--yum)
+        ARG[yum]="$3"; shift; shift;;
+      -p|--pacman)
+        ARG[pacman]="$3"; shift; shift;;
       -n|--node)
-        ARG[NODE]="$3"; shift; shift;;
+        ARG[node]="$3"; shift; shift;;
       -r|--rust)
-        ARG[RUST]="$3"; shift; shift;;
-      -q|--quiet)
+        ARG[rust]="$3"; shift; shift;;
+      -Q|--quiet)
         QUIET=true; shift;;
-      -y|--yes)
+      -Y|--yes)
         YES=true; shift;;
+      -S|--simulate)
+        SIMULATE=true; shift;;
+      -*)
+        if [[ "$2" = "-" ]]; then
+          print_error "There might be an error in your command, found a lone '-'"
+          exit
+        fi
+
+        if [[ "$2" == *"Q"* ]]; then
+          QUIET=true
+        fi
+        if [[ "$2" == *"Y"* ]]; then
+          YES=true
+        fi
+        if [[ "$2" == *"S"* ]]; then
+          SIMULATE=true
+        fi
+
+        local non_flags=$(echo "$2" | sed 's/[QYS]//g')
+        if is_set "$non_flags"; then
+          print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
+          exit
+        fi
+
+        shift;;
       *)
-        print_error Unknown option: $key
+        print_error "Unknown option: ${BOLD}$2${NO_COLOR}"
         exit
     esac
+  done
+}
+
+proceed() {
+  for type in "${TYPES[@]}"; do
+    echo type:$type
   done
 }
 
@@ -63,56 +96,40 @@ parse_args() {
 main() {
   parse_args $@
   get_dir
-
-  local dir="${ARG[dir]}"
-  print_info Depmanager directory: $dir
+  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
 
   for type in "${TYPES[@]}"; do
-    make_path "$type"
-    check_file "$type"
-    detect_manager "$type"
-
-    local message=""
-    local file="${ARG[$type]}"
-    local found="${FOUND[$type]}"
-    local detect="${DETECT[$type]}"
-
-    if $detect; then
-      message="manager found, "
+    if [[ "${ARG[$type]}" = "false" ]]; then
+      BYPASS[$type]=true
     else
-      message="manager NOT found, "
+      make_path "$type"
+      check_file "$type"
     fi
 
-    if $found; then
-      message="$message file found ($file)."
-    else
-      message="$message file NOT found ($file)."
-    fi
-
-    if $detect && $found; then
-      print_success $type: $message Will proceed.
-    else
-      print_warning $type: $message Will NOT proceed.
+    if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
+      PROCEED[$type]=true
     fi
   done
 
+  for type in "${SYSTEM_TYPES[@]}"; do
+    detect_manager "$type"
+  done
 
+  print_pre_proceed_message
 
-  # if [[ $QUIET == false ]]; then
-    # echo lol
-  # else
-    # echo suposed quiet
-  # fi
+  local confirm_message="Proceed for $COMMAND?"
+  if $SIMULATE; then
+    confirm_message="Simulate $COMMAND?"
+  fi
 
-  # for a in "${name[@]}"; do
-    # echo $a
-  # done
+  if print_confirm "$confirm_message"; then
+    print_info Go!
+  else
+    print_info Bye!
+  fi
+  exit
 
-  # get_dir
-  # echo $DIR
-
-  # get_deps SYSTEM
-  # echo SYSTEM: $SYSTEM
+  # proceed
 }
 
 # Run

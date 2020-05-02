@@ -1,40 +1,45 @@
 #!/bin/bash
 
+SYSTEM_TYPES=(apt yum pacman)
+NON_SYSTEM_TYPES=(node rust)
+TYPES=("${SYSTEM_TYPES[@]}" "${NON_SYSTEM_TYPES[@]}")
+
 declare -A DEFAULT
 DEFAULT[dir]="$HOME/.config/depmanager"
-DEFAULT[apt]="apt.csv"
-DEFAULT[yum]="yum.csv"
-DEFAULT[pacman]="pacman.csv"
-DEFAULT[node]="node.csv"
-DEFAULT[rust]="rust.csv"
+for type in "${TYPES[@]}"; do
+  DEFAULT[$type]="$type.csv"
+done
 
 declare -A ARG
-ARG[dir]=
-ARG[apt]=
-ARG[yum]=
-ARG[pacman]=
-ARG[node]=
-ARG[rust]=
+for type in "${TYPES[@]}"; do
+  ARG[$type]=
+done
+
+declare -A BYPASS
+for type in "${TYPES[@]}"; do
+  BYPASS[$type]=false
+done
 
 declare -A FOUND
-FOUND[apt]=
-FOUND[yum]=
-FOUND[pacman]=
-FOUND[node]=
-FOUND[rust]=
+for type in "${TYPES[@]}"; do
+  FOUND[$type]=false
+done
 
 declare -A DETECT
-ARG[apt]=
-ARG[yum]=
-ARG[pacman]=
-ARG[node]=
-ARG[rust]=
+for type in "${TYPES[@]}"; do
+  DETECT[$type]=false
+done
+
+declare -A PROCEED
+for type in "${TYPES[@]}"; do
+  PROCEED[$type]=false
+done
 
 COMMAND=
+DIR=
 QUIET=false
 YES=false
-
-TYPES=(apt yum pacman node rust)
+SIMULATE=true # TODO should be false in prod
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)

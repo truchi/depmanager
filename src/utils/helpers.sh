@@ -48,7 +48,7 @@ file_exists() {
 # Returns true if url $1 exists, false otherwise
 #
 url_exists() {
-  if ! wget -q --spider "$1"; then
+  if wget -q --spider "$1"; then
     return 0
   else
     return 1
