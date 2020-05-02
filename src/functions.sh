@@ -28,6 +28,24 @@ is_set() {
 }
 
 #
+# Returns true if file $1 exists, false otherwise
+#
+file_exists() {
+  if [[ -f "$1" ]]; then return 0
+  else return 1
+  fi
+}
+
+#
+# Returns true if url $1 exists, false otherwise
+#
+url_exists() {
+  if ! wget -q --spider "$1"; then return 0
+  else return 1
+  fi
+}
+
+#
 # Sets `ARG[DIR]` according to (in this precedence order):
 # - cli arg      (relative to current working directory)
 # - env variable (relative to home)
@@ -50,7 +68,7 @@ get_dir() {
     # If env variable is defined
     if is_set "$DEPMANAGER_DIR"; then
       # Use user's dir
-      dir=$DEPMANAGER_DIR
+      dir="$DEPMANAGER_DIR"
 
       # Relative to home
       if ! is_absolute "$dir"; then
@@ -58,11 +76,11 @@ get_dir() {
       fi
     else
       # Use default dir
-      dir=${DEFAULT[DIR]}
+      dir="${DEFAULT[DIR]}"
     fi
   fi
 
-  ARG[DIR]=$dir
+  ARG[DIR]="$dir"
 }
 
 #
@@ -72,10 +90,8 @@ get_dir() {
 # Assumes `CWD` is set
 #
 make_path() {
-  local type=$1
+  local type="$1"
   local file=""
-  # local dir="${ARG[DIR]}"
-  # local path="${ARG[$type]}"
 
   # If file is given in args
   if is_set "${ARG[$type]}";then
@@ -91,7 +107,7 @@ make_path() {
     file="${ARG[DIR]}/${DEFAULT[$type]}"
   fi
 
-  ARG[$type]=$file
+  ARG[$type]="$file"
 }
 
 #
@@ -99,29 +115,15 @@ make_path() {
 # Sets it to false when not
 #
 check_file() {
-  local type=$1
+  local type="$1"
   local file="${ARG[$type]}"
 
   if is_url "$file"; then
-    if ! wget -q --spider $file; then
+    if ! url_exists "$file"; then
       ARG[$type]=false
     fi
-  elif [[ ! -f "$file" ]]; then
+  elif file_exists "$file"; then
     ARG[$type]=false
-  fi
-}
-
-get_deps() {
-  local type=$1                    # SYSTEM or NODE or RUST
-  local file="$DIR/${FILE[$type]}"
-
-  echo type: $type
-  echo file: $file
-
-  if [[ -f $file ]]; then
-    echo "It exitsts"
-  else
-    echo "It dont exitsts"
   fi
 }
 

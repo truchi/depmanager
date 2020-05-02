@@ -5,23 +5,23 @@ print_date() {
 }
 
 print_error() {
-  echo $(print_date) "${RED}✗${NO_COLOR} $@"
+  echo "$(print_date) ${RED}✗${NO_COLOR} $@"
 }
 
 print_success() {
-  echo $(print_date) "${GREEN}✔${NO_COLOR} $@"
+  echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
 }
 
 print_info() {
-  echo $(print_date) "${BLUE}${BOLD}i${NO_COLOR} $@"
+  echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
 print_confirm() {
-  echo $(print_date) "${YELLOW}${BOLD}?${NO_COLOR} $@ ${YELLOW}(Y)${NO_COLOR}"
+  echo "$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} $@ ${YELLOW}(Y)${NO_COLOR}"
 }
 
 print_version() {
-  echo ${YELLOW}v0.0.1${NO_COLOR}
+  echo "${YELLOW}v0.0.1${NO_COLOR}"
 }
 
 print_summary () {

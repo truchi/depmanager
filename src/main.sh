@@ -11,23 +11,23 @@ parse_args() {
     print_help
     exit
   elif [[ $# == 1 ]]; then
-    if [[ $1 == "--version" || $1 == "-v" ]]; then
+    if [[ "$1" == "--version" || "$1" == "-v" ]]; then
       print_version
       exit
-    elif [[ $1 == "--help" || $1 == "-h" ]]; then
+    elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
       print_help
       exit
     fi
   fi
 
   # Get command
-  if [[ $1 == "check" || $1 == "c" ]]; then
+  if [[ "$1" == "check" || "$1" == "c" ]]; then
     COMMAND="check"
-  elif [[ $1 == "diff" || $1 == "d" ]]; then
+  elif [[ "$1" == "diff" || "$1" == "d" ]]; then
     COMMAND="diff"
-  elif [[ $1 == "install" || $1 == "i" ]]; then
+  elif [[ "$1" == "install" || "$1" == "i" ]]; then
     COMMAND="install"
-  elif [[ $1 == "update" || $1 == "u" ]]; then
+  elif [[ "$1" == "update" || "$1" == "u" ]]; then
     COMMAND="update"
   else
     print_error Unknown command: $1
@@ -36,7 +36,7 @@ parse_args() {
 
   # Get options
   while [[ $# -gt 1 ]]; do
-    case $2 in
+    case "$2" in
       -d|--dir)
         ARG[DIR]="$3"; shift; shift;;
       -s|--system)
