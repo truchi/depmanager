@@ -92,14 +92,14 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_proceed_message () {
-  for type in "${TYPES[@]}"; do
-    local message="${BOLD}$type${NO_COLOR}: "
-    local file="${ARG[$type]}"
-    local bypass="${BYPASS[$type]}"
-    local found="${FOUND[$type]}"
-    local proceed="${PROCEED[$type]}"
+  for manager in "${MANAGERS[@]}"; do
+    local message="${BOLD}$manager${NO_COLOR}: "
+    local file="${ARG[$manager]}"
+    local bypass="${BYPASS[$manager]}"
+    local found="${FOUND[$manager]}"
+    local proceed="${PROCEED[$manager]}"
 
-    if is_system_type "$type" && [[ "${DETECT[$type]}" != true ]]; then
+    if is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]]; then
       continue
     fi
 

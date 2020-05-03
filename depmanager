@@ -21,39 +21,39 @@
 # vars
 ###################################################
 
-SYSTEM_TYPES=(apt yum pacman)
-NON_SYSTEM_TYPES=(node rust)
-TYPES=("${SYSTEM_TYPES[@]}" "${NON_SYSTEM_TYPES[@]}")
+SYSTEM_MANAGERS=(apt yum pacman)
+NON_SYSTEM_MANAGERS=(node rust)
+MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 declare -A DEFAULT
 DEFAULT[dir]="$HOME/.config/depmanager"
-for type in "${TYPES[@]}"; do
-  DEFAULT[$type]="$type.csv"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULT[$manager]="$manager.csv"
 done
 
 declare -A ARG
-for type in "${TYPES[@]}"; do
-  ARG[$type]=
+for manager in "${MANAGERS[@]}"; do
+  ARG[$manager]=
 done
 
 declare -A BYPASS
-for type in "${TYPES[@]}"; do
-  BYPASS[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  BYPASS[$manager]=false
 done
 
 declare -A FOUND
-for type in "${TYPES[@]}"; do
-  FOUND[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  FOUND[$manager]=false
 done
 
 declare -A DETECT
-for type in "${TYPES[@]}"; do
-  DETECT[$type]=
+for manager in "${MANAGERS[@]}"; do
+  DETECT[$manager]=
 done
 
 declare -A PROCEED
-for type in "${TYPES[@]}"; do
-  PROCEED[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  PROCEED[$manager]=false
 done
 
 COMMAND=
@@ -170,14 +170,14 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_proceed_message () {
-  for type in "${TYPES[@]}"; do
-    local message="${BOLD}$type${NO_COLOR}: "
-    local file="${ARG[$type]}"
-    local bypass="${BYPASS[$type]}"
-    local found="${FOUND[$type]}"
-    local proceed="${PROCEED[$type]}"
+  for manager in "${MANAGERS[@]}"; do
+    local message="${BOLD}$manager${NO_COLOR}: "
+    local file="${ARG[$manager]}"
+    local bypass="${BYPASS[$manager]}"
+    local found="${FOUND[$manager]}"
+    local proceed="${PROCEED[$manager]}"
 
-    if is_system_type "$type" && [[ "${DETECT[$type]}" != true ]]; then
+    if is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]]; then
       continue
     fi
 
@@ -272,10 +272,10 @@ command_exists() {
 }
 
 #
-# Returns true if $1 is in `SYSTEM_TYPES`, false otherwise
+# Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
 #
-is_system_type() {
-  if [[ " ${SYSTEM_TYPES[@]} " =~ " $1 " ]]; then
+is_system_manager() {
+  if [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]; then
     return 0
   else
     return 1
@@ -318,13 +318,13 @@ get_dir() {
 # Assumes `CWD` is set
 #
 make_path() {
-  local type="$1"
+  local manager="$1"
   local file=""
 
   # If file is given in args
-  if is_set "${ARG[$type]}";then
+  if is_set "${ARG[$manager]}"; then
     # Use file arg
-    file="${ARG[$type]}"
+    file="${ARG[$manager]}"
 
     # Relative to current working dir
     if ! is_absolute "$file" && ! is_url "$file"; then
@@ -332,10 +332,10 @@ make_path() {
     fi
   else
     # Use default file, relative to ARG[dir]
-    file="${ARG[dir]}/${DEFAULT[$type]}"
+    file="${ARG[dir]}/${DEFAULT[$manager]}"
   fi
 
-  ARG[$type]="$file"
+  ARG[$manager]="$file"
 }
 
 #
@@ -343,14 +343,14 @@ make_path() {
 # Returns true in this case, false otherwise
 #
 check_file() {
-  local type="$1"
-  local file="${ARG[$type]}"
+  local manager="$1"
+  local file="${ARG[$manager]}"
 
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    FOUND[$type]=true
+    FOUND[$manager]=true
     return 0
   else
-    FOUND[$type]=false
+    FOUND[$manager]=false
     return 1
   fi
 }
@@ -360,13 +360,13 @@ check_file() {
 # Returns true in this case, false otherwise
 #
 detect_manager() {
-  local type="$1"
+  local manager="$1"
 
-  if command_exists "${type}_detect" && ${type}_detect; then
-    DETECT[$type]=true
+  if command_exists "${manager}_detect" && ${manager}_detect; then
+    DETECT[$manager]=true
     return 0
   else
-    DETECT[$type]=false
+    DETECT[$manager]=false
     return 1
   fi
 }
@@ -476,8 +476,8 @@ parse_args() {
 }
 
 proceed() {
-  for type in "${TYPES[@]}"; do
-    echo type:$type
+  for manager in "${MANAGERS[@]}"; do
+    echo manager:$manager
   done
 }
 
@@ -490,20 +490,20 @@ main() {
   get_dir
   print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
 
-  for type in "${TYPES[@]}"; do
-    if [[ "${ARG[$type]}" = "false" ]]; then
-      BYPASS[$type]=true
+  for manager in "${MANAGERS[@]}"; do
+    if [[ "${ARG[$manager]}" = "false" ]]; then
+      BYPASS[$manager]=true
     else
-      make_path "$type"
-      check_file "$type"
+      make_path "$manager"
+      check_file "$manager"
     fi
 
-    if is_system_type $type; then
-      detect_manager "$type"
+    if is_system_manager $manager; then
+      detect_manager "$manager"
     fi
 
-    if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
-      PROCEED[$type]=true
+    if ! ${BYPASS[$manager]} && ${FOUND[$manager]}; then
+      PROCEED[$manager]=true
     fi
   done
 

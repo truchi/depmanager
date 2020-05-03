@@ -1,38 +1,38 @@
 #!/bin/bash
 
-SYSTEM_TYPES=(apt yum pacman)
-NON_SYSTEM_TYPES=(node rust)
-TYPES=("${SYSTEM_TYPES[@]}" "${NON_SYSTEM_TYPES[@]}")
+SYSTEM_MANAGERS=(apt yum pacman)
+NON_SYSTEM_MANAGERS=(node rust)
+MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 declare -A DEFAULT
 DEFAULT[dir]="$HOME/.config/depmanager"
-for type in "${TYPES[@]}"; do
-  DEFAULT[$type]="$type.csv"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULT[$manager]="$manager.csv"
 done
 
 declare -A ARG
-for type in "${TYPES[@]}"; do
-  ARG[$type]=
+for manager in "${MANAGERS[@]}"; do
+  ARG[$manager]=
 done
 
 declare -A BYPASS
-for type in "${TYPES[@]}"; do
-  BYPASS[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  BYPASS[$manager]=false
 done
 
 declare -A FOUND
-for type in "${TYPES[@]}"; do
-  FOUND[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  FOUND[$manager]=false
 done
 
 declare -A DETECT
-for type in "${TYPES[@]}"; do
-  DETECT[$type]=
+for manager in "${MANAGERS[@]}"; do
+  DETECT[$manager]=
 done
 
 declare -A PROCEED
-for type in "${TYPES[@]}"; do
-  PROCEED[$type]=false
+for manager in "${MANAGERS[@]}"; do
+  PROCEED[$manager]=false
 done
 
 COMMAND=

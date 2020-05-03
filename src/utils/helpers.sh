@@ -67,10 +67,10 @@ command_exists() {
 }
 
 #
-# Returns true if $1 is in `SYSTEM_TYPES`, false otherwise
+# Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
 #
-is_system_type() {
-  if [[ " ${SYSTEM_TYPES[@]} " =~ " $1 " ]]; then
+is_system_manager() {
+  if [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]; then
     return 0
   else
     return 1

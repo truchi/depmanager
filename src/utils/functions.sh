@@ -32,13 +32,13 @@ get_dir() {
 # Assumes `CWD` is set
 #
 make_path() {
-  local type="$1"
+  local manager="$1"
   local file=""
 
   # If file is given in args
-  if is_set "${ARG[$type]}";then
+  if is_set "${ARG[$manager]}"; then
     # Use file arg
-    file="${ARG[$type]}"
+    file="${ARG[$manager]}"
 
     # Relative to current working dir
     if ! is_absolute "$file" && ! is_url "$file"; then
@@ -46,10 +46,10 @@ make_path() {
     fi
   else
     # Use default file, relative to ARG[dir]
-    file="${ARG[dir]}/${DEFAULT[$type]}"
+    file="${ARG[dir]}/${DEFAULT[$manager]}"
   fi
 
-  ARG[$type]="$file"
+  ARG[$manager]="$file"
 }
 
 #
@@ -57,14 +57,14 @@ make_path() {
 # Returns true in this case, false otherwise
 #
 check_file() {
-  local type="$1"
-  local file="${ARG[$type]}"
+  local manager="$1"
+  local file="${ARG[$manager]}"
 
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    FOUND[$type]=true
+    FOUND[$manager]=true
     return 0
   else
-    FOUND[$type]=false
+    FOUND[$manager]=false
     return 1
   fi
 }
@@ -74,13 +74,13 @@ check_file() {
 # Returns true in this case, false otherwise
 #
 detect_manager() {
-  local type="$1"
+  local manager="$1"
 
-  if command_exists "${type}_detect" && ${type}_detect; then
-    DETECT[$type]=true
+  if command_exists "${manager}_detect" && ${manager}_detect; then
+    DETECT[$manager]=true
     return 0
   else
-    DETECT[$type]=false
+    DETECT[$manager]=false
     return 1
   fi
 }

@@ -86,8 +86,8 @@ parse_args() {
 }
 
 proceed() {
-  for type in "${TYPES[@]}"; do
-    echo type:$type
+  for manager in "${MANAGERS[@]}"; do
+    echo manager:$manager
   done
 }
 
@@ -100,20 +100,20 @@ main() {
   get_dir
   print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
 
-  for type in "${TYPES[@]}"; do
-    if [[ "${ARG[$type]}" = "false" ]]; then
-      BYPASS[$type]=true
+  for manager in "${MANAGERS[@]}"; do
+    if [[ "${ARG[$manager]}" = "false" ]]; then
+      BYPASS[$manager]=true
     else
-      make_path "$type"
-      check_file "$type"
+      make_path "$manager"
+      check_file "$manager"
     fi
 
-    if is_system_type $type; then
-      detect_manager "$type"
+    if is_system_manager $manager; then
+      detect_manager "$manager"
     fi
 
-    if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
-      PROCEED[$type]=true
+    if ! ${BYPASS[$manager]} && ${FOUND[$manager]}; then
+      PROCEED[$manager]=true
     fi
   done
 
