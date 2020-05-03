@@ -14,9 +14,7 @@ get_dir() {
     dir="$DEPMANAGER_DIR"
 
     # Relative to home
-    if ! is_absolute "$dir"; then
-      dir="$HOME/$dir"
-    fi
+    ! is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
     dir="${DEFAULT[dir]}"
@@ -41,9 +39,7 @@ make_path() {
     file="${ARG[$manager]}"
 
     # Relative to current working dir
-    if ! is_absolute "$file" && ! is_url "$file"; then
-      file="$CWD/$file"
-    fi
+    ! is_absolute "$file" && ! is_url "$file" && file="$CWD/$file"
   else
     # Use default file, relative to ARG[dir]
     file="${ARG[dir]}/${DEFAULT[$manager]}"
@@ -61,21 +57,18 @@ check_file() {
   local file="${ARG[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${FOUND[$manager]}"; then
-    if "${FOUND[$manager]}"; then
-      return 0
-    else 
-      return 1
-    fi
+  if is_set "${FOUND[$manager]}";then
+    "${FOUND[$manager]}"
+    return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
     FOUND[$manager]=true
-    return 0
+    true
   else
     FOUND[$manager]=false
-    return 1
+    false
   fi
 }
 
@@ -89,20 +82,17 @@ detect_manager() {
 
   # If already detected, do not try to detect again
   if is_set "${DETECT[$manager]}"; then
-    if "${DETECT[$manager]}"; then
-      return 0
-    else 
-      return 1
-    fi
+    "${DETECT[$manager]}"
+    return
   fi
 
   # Detection
   if command_exists "${manager}_detect" && ${manager}_detect; then
     DETECT[$manager]=true
-    return 0
+    true
   else
     DETECT[$manager]=false
-    return 1
+    false
   fi
 }
 

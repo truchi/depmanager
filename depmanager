@@ -82,40 +82,33 @@ print_error() {
 }
 
 print_warning() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${YELLOW}!${NO_COLOR} $@"
 }
 
 print_success() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
 }
 
 print_info() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
 print_confirm() {
-  if $YES; then
-    return 0
-  fi
+  # Auto confirm if flag is given
+  $YES && return
 
+  # Prompt confirmation message
   local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$1${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
-
   read -p "$message " -n 1 -r
 
-  if [[ ! "$REPLY" =~ ^$ ]]
-  then
-    echo
-  fi
+  # Carriage return if user did not press enter
+  [[ ! "$REPLY" =~ ^$ ]] && echo
 
-  if [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
-  then
-    return 0
-  else
-    return 1
-  fi
+  # Accepts <Enter>, Y or y
+  [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
 }
 
 print_version() {
@@ -166,31 +159,23 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 
 print_pre_proceed_message () {
   for manager in "${MANAGERS[@]}"; do
-    local message="${BOLD}$manager${NO_COLOR}: "
     local file="${ARG[$manager]}"
     local bypass="${BYPASS[$manager]}"
     local found="${FOUND[$manager]}"
 
-    if is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]]; then
-      continue
+    # Ignore system manager which are not detected on user's system
+    is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]] && continue
+
+    # Make message according to bypass & found
+    local message="${BOLD}$manager${NO_COLOR}: "
+    if   $bypass; then message="$message bypassed"
+    elif $found ; then message="$message ${GREEN}✔${NO_COLOR} ($file)"
+    else               message="$message ${RED}✗${NO_COLOR} ($file)"
     fi
 
-    if $bypass; then
-      message="$message bypassed"
-    else
-      if $found; then
-        message="$message ${GREEN}✔${NO_COLOR} ($file)"
-      else
-        message="$message ${RED}✗${NO_COLOR} ($file)"
-      fi
-    fi
-
-    if $bypass; then
-      print_info $message
-    elif $found; then
-      print_success $message
-    else
-      print_warning $message
+    if   $bypass; then print_info    $message
+    elif $found ; then print_success $message
+    else               print_warning $message
     fi
   done
 }
@@ -203,77 +188,49 @@ print_pre_proceed_message () {
 # Returns true if $1 starts with /, false otherwise
 #
 is_absolute() {
-  if [[ "$1" =~ / ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ "$1" =~ / ]]
 }
 
 #
 # Returns true if $1 starts with https?://, false otherwise
 #
 is_url() {
-  if [[ "$1" =~ https?:// ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ "$1" =~ https?:// ]]
 }
 
 #
 # Returns true is $1 is set, false otherwise
 #
 is_set() {
-  if [[ ! -z "$1" ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ ! -z "$1" ]]
 }
 
 #
 # Returns true if file $1 exists, false otherwise
 #
 file_exists() {
-  if [[ -f "$1" ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ -f "$1" ]]
 }
 
 #
 # Returns true if url $1 exists, false otherwise
 #
 url_exists() {
-  if wget -q --spider "$1"; then
-    return 0
-  else
-    return 1
-  fi
+  wget -q --spider "$1"
 }
 
 #
 # Returns true if $1 is found on the system, false otherwise
 #
 command_exists() {
-  if command -v "$1" >/dev/null 2>&1; then
-    return 0
-  else
-    return 1
-  fi
+  command -v "$1" >/dev/null 2>&1
 }
 
 #
 # Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
 #
 is_system_manager() {
-  if [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]; then
-    return 0
-  else
-    return 1
-  fi
+  [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
 }
 
 ###################################################
@@ -294,9 +251,7 @@ get_dir() {
     dir="$DEPMANAGER_DIR"
 
     # Relative to home
-    if ! is_absolute "$dir"; then
-      dir="$HOME/$dir"
-    fi
+    ! is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
     dir="${DEFAULT[dir]}"
@@ -321,9 +276,7 @@ make_path() {
     file="${ARG[$manager]}"
 
     # Relative to current working dir
-    if ! is_absolute "$file" && ! is_url "$file"; then
-      file="$CWD/$file"
-    fi
+    ! is_absolute "$file" && ! is_url "$file" && file="$CWD/$file"
   else
     # Use default file, relative to ARG[dir]
     file="${ARG[dir]}/${DEFAULT[$manager]}"
@@ -341,21 +294,18 @@ check_file() {
   local file="${ARG[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${FOUND[$manager]}"; then
-    if "${FOUND[$manager]}"; then
-      return 0
-    else 
-      return 1
-    fi
+  if is_set "${FOUND[$manager]}";then
+    "${FOUND[$manager]}"
+    return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
     FOUND[$manager]=true
-    return 0
+    true
   else
     FOUND[$manager]=false
-    return 1
+    false
   fi
 }
 
@@ -369,20 +319,17 @@ detect_manager() {
 
   # If already detected, do not try to detect again
   if is_set "${DETECT[$manager]}"; then
-    if "${DETECT[$manager]}"; then
-      return 0
-    else 
-      return 1
-    fi
+    "${DETECT[$manager]}"
+    return
   fi
 
   # Detection
   if command_exists "${manager}_detect" && ${manager}_detect; then
     DETECT[$manager]=true
-    return 0
+    true
   else
     DETECT[$manager]=false
-    return 1
+    false
   fi
 }
 
@@ -467,15 +414,9 @@ parse_args() {
         local flags="${2:1}"
         local non_flags=$(echo "$flags" | sed 's/[QYS]//g')
 
-        if [[ "$flags" == *"Q"* ]]; then
-          QUIET=true
-        fi
-        if [[ "$flags" == *"Y"* ]]; then
-          YES=true
-        fi
-        if [[ "$flags" == *"S"* ]]; then
-          SIMULATE=true
-        fi
+        [[ "$flags" == *"Q"* ]] && QUIET=true
+        [[ "$flags" == *"Y"* ]] && YES=true
+        [[ "$flags" == *"S"* ]] && SIMULATE=true
 
         if is_set "$non_flags"; then
           print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
@@ -513,25 +454,21 @@ main() {
       check_file "$manager"
     fi
 
-    if is_system_manager $manager; then
-      detect_manager "$manager"
-    fi
+    is_system_manager $manager && detect_manager "$manager"
   done
 
   print_pre_proceed_message
 
   local confirm_message="Proceed for $COMMAND?"
-  if $SIMULATE; then
-    confirm_message="Simulate $COMMAND?"
-  fi
+  $SIMULATE && confirm_message="Simulate $COMMAND?"
 
   if print_confirm "$confirm_message"; then
     print_info Go!
     proceed
   else
     print_info Bye!
+    exit
   fi
-  exit
 }
 
 # Run

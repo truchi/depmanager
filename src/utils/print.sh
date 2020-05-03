@@ -9,40 +9,33 @@ print_error() {
 }
 
 print_warning() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${YELLOW}!${NO_COLOR} $@"
 }
 
 print_success() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
 }
 
 print_info() {
-  if $QUIET; then return; fi
+  $QUIET && return
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
 print_confirm() {
-  if $YES; then
-    return 0
-  fi
+  # Auto confirm if flag is given
+  $YES && return
 
+  # Prompt confirmation message
   local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$1${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
-
   read -p "$message " -n 1 -r
 
-  if [[ ! "$REPLY" =~ ^$ ]]
-  then
-    echo
-  fi
+  # Carriage return if user did not press enter
+  [[ ! "$REPLY" =~ ^$ ]] && echo
 
-  if [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
-  then
-    return 0
-  else
-    return 1
-  fi
+  # Accepts <Enter>, Y or y
+  [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
 }
 
 print_version() {
@@ -93,31 +86,23 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 
 print_pre_proceed_message () {
   for manager in "${MANAGERS[@]}"; do
-    local message="${BOLD}$manager${NO_COLOR}: "
     local file="${ARG[$manager]}"
     local bypass="${BYPASS[$manager]}"
     local found="${FOUND[$manager]}"
 
-    if is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]]; then
-      continue
+    # Ignore system manager which are not detected on user's system
+    is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]] && continue
+
+    # Make message according to bypass & found
+    local message="${BOLD}$manager${NO_COLOR}: "
+    if   $bypass; then message="$message bypassed"
+    elif $found ; then message="$message ${GREEN}✔${NO_COLOR} ($file)"
+    else               message="$message ${RED}✗${NO_COLOR} ($file)"
     fi
 
-    if $bypass; then
-      message="$message bypassed"
-    else
-      if $found; then
-        message="$message ${GREEN}✔${NO_COLOR} ($file)"
-      else
-        message="$message ${RED}✗${NO_COLOR} ($file)"
-      fi
-    fi
-
-    if $bypass; then
-      print_info $message
-    elif $found; then
-      print_success $message
-    else
-      print_warning $message
+    if   $bypass; then print_info    $message
+    elif $found ; then print_success $message
+    else               print_warning $message
     fi
   done
 }

@@ -62,15 +62,9 @@ parse_args() {
         local flags="${2:1}"
         local non_flags=$(echo "$flags" | sed 's/[QYS]//g')
 
-        if [[ "$flags" == *"Q"* ]]; then
-          QUIET=true
-        fi
-        if [[ "$flags" == *"Y"* ]]; then
-          YES=true
-        fi
-        if [[ "$flags" == *"S"* ]]; then
-          SIMULATE=true
-        fi
+        [[ "$flags" == *"Q"* ]] && QUIET=true
+        [[ "$flags" == *"Y"* ]] && YES=true
+        [[ "$flags" == *"S"* ]] && SIMULATE=true
 
         if is_set "$non_flags"; then
           print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
@@ -108,25 +102,21 @@ main() {
       check_file "$manager"
     fi
 
-    if is_system_manager $manager; then
-      detect_manager "$manager"
-    fi
+    is_system_manager $manager && detect_manager "$manager"
   done
 
   print_pre_proceed_message
 
   local confirm_message="Proceed for $COMMAND?"
-  if $SIMULATE; then
-    confirm_message="Simulate $COMMAND?"
-  fi
+  $SIMULATE && confirm_message="Simulate $COMMAND?"
 
   if print_confirm "$confirm_message"; then
     print_info Go!
     proceed
   else
     print_info Bye!
+    exit
   fi
-  exit
 }
 
 # Run
