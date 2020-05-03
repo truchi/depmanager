@@ -108,13 +108,13 @@ main() {
       check_file "$type"
     fi
 
+    if is_system_type $type; then
+      detect_manager "$type"
+    fi
+
     if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
       PROCEED[$type]=true
     fi
-  done
-
-  for type in "${SYSTEM_TYPES[@]}"; do
-    detect_manager "$type"
   done
 
   print_pre_proceed_message

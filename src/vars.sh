@@ -27,7 +27,7 @@ done
 
 declare -A DETECT
 for type in "${TYPES[@]}"; do
-  DETECT[$type]=false
+  DETECT[$type]=
 done
 
 declare -A PROCEED

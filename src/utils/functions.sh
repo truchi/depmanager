@@ -53,7 +53,8 @@ make_path() {
 }
 
 #
-# sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url)
+# Sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url), to false otherwise
+# Returns true in this case, false otherwise
 #
 check_file() {
   local type="$1"
@@ -61,20 +62,26 @@ check_file() {
 
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
     FOUND[$type]=true
+    return 0
+  else
+    FOUND[$type]=false
+    return 1
   fi
 }
 
 #
-# Sets `DETECT$[$1]` to true if the manager is found on the system,
-# to false otherwise
+# Sets `DETECT$[$1]` to true if the manager is found on the system, to false otherwise
+# Returns true in this case, false otherwise
 #
 detect_manager() {
   local type="$1"
 
   if command_exists "${type}_detect" && ${type}_detect; then
     DETECT[$type]=true
+    return 0
   else
     DETECT[$type]=false
+    return 1
   fi
 }
 

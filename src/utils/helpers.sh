@@ -65,3 +65,14 @@ command_exists() {
     return 1
   fi
 }
+
+#
+# Returns true if $1 is in `SYSTEM_TYPES`, false otherwise
+#
+is_system_type() {
+  if [[ " ${SYSTEM_TYPES[@]} " =~ " $1 " ]]; then
+    return 0
+  else
+    return 1
+  fi
+}

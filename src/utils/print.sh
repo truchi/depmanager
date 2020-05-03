@@ -99,6 +99,10 @@ print_pre_proceed_message () {
     local found="${FOUND[$type]}"
     local proceed="${PROCEED[$type]}"
 
+    if is_system_type "$type" && [[ "${DETECT[$type]}" != true ]]; then
+      continue
+    fi
+
     if $bypass; then
       message="$message bypassed"
     else

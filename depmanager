@@ -48,7 +48,7 @@ done
 
 declare -A DETECT
 for type in "${TYPES[@]}"; do
-  DETECT[$type]=false
+  DETECT[$type]=
 done
 
 declare -A PROCEED
@@ -177,6 +177,10 @@ print_pre_proceed_message () {
     local found="${FOUND[$type]}"
     local proceed="${PROCEED[$type]}"
 
+    if is_system_type "$type" && [[ "${DETECT[$type]}" != true ]]; then
+      continue
+    fi
+
     if $bypass; then
       message="$message bypassed"
     else
@@ -267,6 +271,17 @@ command_exists() {
   fi
 }
 
+#
+# Returns true if $1 is in `SYSTEM_TYPES`, false otherwise
+#
+is_system_type() {
+  if [[ " ${SYSTEM_TYPES[@]} " =~ " $1 " ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 ###################################################
 # utils/functions
 ###################################################
@@ -324,7 +339,8 @@ make_path() {
 }
 
 #
-# sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url)
+# Sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url), to false otherwise
+# Returns true in this case, false otherwise
 #
 check_file() {
   local type="$1"
@@ -332,20 +348,26 @@ check_file() {
 
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
     FOUND[$type]=true
+    return 0
+  else
+    FOUND[$type]=false
+    return 1
   fi
 }
 
 #
-# Sets `DETECT$[$1]` to true if the manager is found on the system,
-# to false otherwise
+# Sets `DETECT$[$1]` to true if the manager is found on the system, to false otherwise
+# Returns true in this case, false otherwise
 #
 detect_manager() {
   local type="$1"
 
   if command_exists "${type}_detect" && ${type}_detect; then
     DETECT[$type]=true
+    return 0
   else
     DETECT[$type]=false
+    return 1
   fi
 }
 
@@ -476,13 +498,13 @@ main() {
       check_file "$type"
     fi
 
+    if is_system_type $type; then
+      detect_manager "$type"
+    fi
+
     if ! ${BYPASS[$type]} && ${FOUND[$type]}; then
       PROCEED[$type]=true
     fi
-  done
-
-  for type in "${SYSTEM_TYPES[@]}"; do
-    detect_manager "$type"
   done
 
   print_pre_proceed_message
