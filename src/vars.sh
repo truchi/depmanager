@@ -15,19 +15,19 @@ for manager in "${MANAGERS[@]}"; do
   ARG[$manager]=
 done
 
-declare -A BYPASS
-for manager in "${MANAGERS[@]}"; do
-  BYPASS[$manager]=false
-done
-
 declare -A FOUND
 for manager in "${MANAGERS[@]}"; do
-  FOUND[$manager]=false
+  FOUND[$manager]=
 done
 
 declare -A DETECT
 for manager in "${MANAGERS[@]}"; do
   DETECT[$manager]=
+done
+
+declare -A BYPASS
+for manager in "${MANAGERS[@]}"; do
+  BYPASS[$manager]=false
 done
 
 COMMAND=

@@ -60,6 +60,16 @@ check_file() {
   local manager="$1"
   local file="${ARG[$manager]}"
 
+  # If already found, do not try to find again
+  if is_set "${FOUND[$manager]}"; then
+    if "${FOUND[$manager]}"; then
+      return 0
+    else 
+      return 1
+    fi
+  fi
+
+  # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
     FOUND[$manager]=true
     return 0
@@ -72,12 +82,21 @@ check_file() {
 #
 # Sets `DETECT$[$1]` to true if the manager is found on the system, to false otherwise
 # Returns true in this case, false otherwise
+# Does not detect twice, reuses `DETECT$[$manager]`
 #
 detect_manager() {
   local manager="$1"
 
+  # If already detected, do not try to detect again
+  if is_set "${DETECT[$manager]}"; then
+    if "${DETECT[$manager]}"; then
+      return 0
+    else 
+      return 1
+    fi
+  fi
 
-
+  # Detection
   if command_exists "${manager}_detect" && ${manager}_detect; then
     DETECT[$manager]=true
     return 0
