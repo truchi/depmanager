@@ -76,6 +76,8 @@ check_file() {
 detect_manager() {
   local manager="$1"
 
+
+
   if command_exists "${manager}_detect" && ${manager}_detect; then
     DETECT[$manager]=true
     return 0

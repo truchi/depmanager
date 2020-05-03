@@ -30,11 +30,6 @@ for manager in "${MANAGERS[@]}"; do
   DETECT[$manager]=
 done
 
-declare -A PROCEED
-for manager in "${MANAGERS[@]}"; do
-  PROCEED[$manager]=false
-done
-
 COMMAND=
 DIR=
 QUIET=false

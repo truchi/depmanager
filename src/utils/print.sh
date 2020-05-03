@@ -97,7 +97,6 @@ print_pre_proceed_message () {
     local file="${ARG[$manager]}"
     local bypass="${BYPASS[$manager]}"
     local found="${FOUND[$manager]}"
-    local proceed="${PROCEED[$manager]}"
 
     if is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]]; then
       continue
@@ -115,7 +114,7 @@ print_pre_proceed_message () {
 
     if $bypass; then
       print_info $message
-    elif $proceed; then
+    elif $found; then
       print_success $message
     else
       print_warning $message

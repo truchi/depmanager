@@ -111,10 +111,6 @@ main() {
     if is_system_manager $manager; then
       detect_manager "$manager"
     fi
-
-    if ! ${BYPASS[$manager]} && ${FOUND[$manager]}; then
-      PROCEED[$manager]=true
-    fi
   done
 
   print_pre_proceed_message
@@ -126,12 +122,11 @@ main() {
 
   if print_confirm "$confirm_message"; then
     print_info Go!
+    proceed
   else
     print_info Bye!
   fi
   exit
-
-  # proceed
 }
 
 # Run
