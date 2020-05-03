@@ -85,24 +85,31 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_proceed_message () {
+  print_info "${BOLD}Depmanager directory${NO_COLOR}: $(get_path dir)"
+
   for manager in "${MANAGERS[@]}"; do
-    local file="${ARG[$manager]}"
-    local bypass="${BYPASS[$manager]}"
-    local found="${FOUND[$manager]}"
-
     # Ignore system manager which are not detected on user's system
-    is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]] && continue
-
-    # Make message according to bypass & found
-    local message="${BOLD}$manager${NO_COLOR}: "
-    if   $bypass; then message="$message bypassed"
-    elif $found ; then message="$message ${GREEN}✔${NO_COLOR} ($file)"
-    else               message="$message ${RED}✗${NO_COLOR} ($file)"
+    if is_system_manager $manager; then
+      detect_manager $manager
+      [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    if   $bypass; then print_info    $message
-    elif $found ; then print_success $message
-    else               print_warning $message
+    # Make message
+    local message="${BOLD}$manager${NO_COLOR}: "
+    if   is_bypassed $manager; then message="$message bypassed"
+    elif detect_path $manager; then message="$message ${GREEN}✔${NO_COLOR} ($(get_path $manager))"
+    else                            message="$message ${RED}✗${NO_COLOR} ($(get_path $manager))"
+    fi
+
+    # Print message
+    if   is_bypassed $manager; then print_info    $message
+    elif detect_path $manager; then print_success $message
+    else                            print_warning $message
     fi
   done
+
+  # Ask for confirmation
+  $SIMULATE \
+    && print_confirm "Simulate $COMMAND?" \
+    || print_confirm "Proceed for $COMMAND"
 }

@@ -38,15 +38,15 @@ parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        ARG[apt]="$3"; shift; shift;;
+        PATHS[apt]="$3"; shift; shift;;
       -y|--yum)
-        ARG[yum]="$3"; shift; shift;;
+        PATHS[yum]="$3"; shift; shift;;
       -p|--pacman)
-        ARG[pacman]="$3"; shift; shift;;
+        PATHS[pacman]="$3"; shift; shift;;
       -n|--node)
-        ARG[node]="$3"; shift; shift;;
+        PATHS[node]="$3"; shift; shift;;
       -r|--rust)
-        ARG[rust]="$3"; shift; shift;;
+        PATHS[rust]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -91,26 +91,17 @@ proceed() {
 #
 main() {
   parse_args $@
-  get_dir
-  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
+  resolve_dir
 
   for manager in "${MANAGERS[@]}"; do
-    if [[ "${ARG[$manager]}" = "false" ]]; then
-      BYPASS[$manager]=true
-    else
-      make_path "$manager"
-      check_file "$manager"
-    fi
+    is_bypassed $manager && continue
 
-    is_system_manager $manager && detect_manager "$manager"
+    resolve_path $manager
+    detect_path $manager
+    detect_manager $manager
   done
-
-  print_pre_proceed_message
-
-  local confirm_message="Proceed for $COMMAND?"
-  $SIMULATE && confirm_message="Simulate $COMMAND?"
-
-  if print_confirm "$confirm_message"; then
+  
+  if print_pre_proceed_message; then
     print_info Go!
     proceed
   else

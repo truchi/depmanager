@@ -4,37 +4,20 @@ SYSTEM_MANAGERS=(apt yum pacman)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
-declare -A DEFAULT
-DEFAULT[dir]="$HOME/.config/depmanager"
-for manager in "${MANAGERS[@]}"; do
-  DEFAULT[$manager]="$manager.csv"
-done
-
-declare -A ARG
-for manager in "${MANAGERS[@]}"; do
-  ARG[$manager]=
-done
-
-declare -A FOUND
-for manager in "${MANAGERS[@]}"; do
-  FOUND[$manager]=
-done
-
-declare -A DETECT
-for manager in "${MANAGERS[@]}"; do
-  DETECT[$manager]=
-done
-
-declare -A BYPASS
-for manager in "${MANAGERS[@]}"; do
-  BYPASS[$manager]=false
-done
-
 COMMAND=
-DIR=
 QUIET=false
 YES=false
 SIMULATE=false
+
+declare -A DEFAULTS
+declare -A PATHS
+declare -A __cache_detect_path
+declare -A __cache_detect_manager
+
+DEFAULTS[dir]="$HOME/.config/depmanager"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULTS[$manager]="$manager.csv"
+done
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
@@ -45,6 +28,4 @@ BLUE=$(tput setaf 4)
 MAGENTA=$(tput setaf 5)
 CYAN=$(tput setaf 6)
 WHITE=$(tput setaf 7)
-
-CWD=$(pwd)
 

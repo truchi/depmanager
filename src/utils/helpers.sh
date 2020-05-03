@@ -48,3 +48,10 @@ command_exists() {
 is_system_manager() {
   [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
 }
+
+#
+# Echos true if $1 is 0, false otherwise
+#
+code_to_boolean() {
+  [[ $1 == 0 ]] && echo true || echo false
+}

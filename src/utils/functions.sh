@@ -5,7 +5,7 @@
 # - env variable (relative to home)
 # - default path
 #
-get_dir() {
+resolve_dir() {
   local dir=""
 
   # If env variable is defined
@@ -17,82 +17,93 @@ get_dir() {
     ! is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
-    dir="${DEFAULT[dir]}"
+    dir="${DEFAULTS[dir]}"
   fi
 
-  ARG[dir]="$dir"
+  PATHS[dir]="$dir"
 }
 
 #
-# Sets `ARG[$1]` according to (in this precedence order):
+# Sets `PATHS[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
 # - default variable (relative to `DIR`)
-# Assumes `CWD` is set
 #
-make_path() {
+resolve_path() {
   local manager="$1"
   local file=""
 
   # If file is given in args
-  if is_set "${ARG[$manager]}"; then
+  if is_set "${PATHS[$manager]}"; then
     # Use file arg
-    file="${ARG[$manager]}"
+    file="${PATHS[$manager]}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! is_url "$file" && file="$CWD/$file"
+    ! is_absolute "$file" && ! is_url "$file" && file="$(pwd)/$file"
   else
-    # Use default file, relative to ARG[dir]
-    file="${ARG[dir]}/${DEFAULT[$manager]}"
+    # Use default file, relative to PATHS[dir]
+    file="${PATHS[dir]}/${DEFAULTS[$manager]}"
   fi
 
-  ARG[$manager]="$file"
+  PATHS[$manager]="$file"
 }
 
 #
-# Sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url), to false otherwise
-# Returns true in this case, false otherwise
+# Returns true if ${PATHS[$1]} exists (file/url), false otherwise
+# With cache
 #
-check_file() {
+detect_path() {
   local manager="$1"
-  local file="${ARG[$manager]}"
+  local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${FOUND[$manager]}";then
-    "${FOUND[$manager]}"
+  if is_set "${__cache_path_exists[$manager]}";then
+    "${__cache_path_exists[$manager]}"
     return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    FOUND[$manager]=true
+    __cache_path_exists[$manager]=true
     true
   else
-    FOUND[$manager]=false
+    __cache_path_exists[$manager]=false
     false
   fi
 }
 
 #
-# Sets `DETECT$[$1]` to true if the manager is found on the system, to false otherwise
-# Returns true in this case, false otherwise
-# Does not detect twice, reuses `DETECT$[$manager]`
+# Returns true if the manager is found on the system, false otherwise
+# With cache (system managers only)
 #
 detect_manager() {
   local manager="$1"
 
   # If already detected, do not try to detect again
-  if is_set "${DETECT[$manager]}"; then
-    "${DETECT[$manager]}"
+  if is_set "${__cache_detect_manager[$manager]}"; then
+    "${__cache_detect_manager[$manager]}"
     return
   fi
 
   # Detection
   if command_exists "${manager}_detect" && ${manager}_detect; then
-    DETECT[$manager]=true
+    is_system_manager $manager && __cache_detect_manager[$manager]=true
     true
   else
-    DETECT[$manager]=false
+    is_system_manager $manager && __cache_detect_manager[$manager]=false
     false
   fi
 }
 
+#
+# Returns true if `${PATHS[$1]}` equals false
+#
+is_bypassed() {
+  [[ "${PATHS[$1]}" == false ]]
+}
+
+#
+# Echos `${PATHS[$1]}`
+#
+get_path() {
+  echo "${PATHS[$1]}"
+}

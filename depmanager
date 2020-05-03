@@ -25,37 +25,20 @@ SYSTEM_MANAGERS=(apt yum pacman)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
-declare -A DEFAULT
-DEFAULT[dir]="$HOME/.config/depmanager"
-for manager in "${MANAGERS[@]}"; do
-  DEFAULT[$manager]="$manager.csv"
-done
-
-declare -A ARG
-for manager in "${MANAGERS[@]}"; do
-  ARG[$manager]=
-done
-
-declare -A FOUND
-for manager in "${MANAGERS[@]}"; do
-  FOUND[$manager]=
-done
-
-declare -A DETECT
-for manager in "${MANAGERS[@]}"; do
-  DETECT[$manager]=
-done
-
-declare -A BYPASS
-for manager in "${MANAGERS[@]}"; do
-  BYPASS[$manager]=false
-done
-
 COMMAND=
-DIR=
 QUIET=false
 YES=false
 SIMULATE=false
+
+declare -A DEFAULTS
+declare -A PATHS
+declare -A __cache_detect_path
+declare -A __cache_detect_manager
+
+DEFAULTS[dir]="$HOME/.config/depmanager"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULTS[$manager]="$manager.csv"
+done
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
@@ -66,8 +49,6 @@ BLUE=$(tput setaf 4)
 MAGENTA=$(tput setaf 5)
 CYAN=$(tput setaf 6)
 WHITE=$(tput setaf 7)
-
-CWD=$(pwd)
 
 ###################################################
 # utils/print
@@ -158,26 +139,33 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_proceed_message () {
+  print_info "${BOLD}Depmanager directory${NO_COLOR}: $(get_path dir)"
+
   for manager in "${MANAGERS[@]}"; do
-    local file="${ARG[$manager]}"
-    local bypass="${BYPASS[$manager]}"
-    local found="${FOUND[$manager]}"
-
     # Ignore system manager which are not detected on user's system
-    is_system_manager "$manager" && [[ "${DETECT[$manager]}" != true ]] && continue
-
-    # Make message according to bypass & found
-    local message="${BOLD}$manager${NO_COLOR}: "
-    if   $bypass; then message="$message bypassed"
-    elif $found ; then message="$message ${GREEN}✔${NO_COLOR} ($file)"
-    else               message="$message ${RED}✗${NO_COLOR} ($file)"
+    if is_system_manager $manager; then
+      detect_manager $manager
+      [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    if   $bypass; then print_info    $message
-    elif $found ; then print_success $message
-    else               print_warning $message
+    # Make message
+    local message="${BOLD}$manager${NO_COLOR}: "
+    if   is_bypassed $manager; then message="$message bypassed"
+    elif detect_path $manager; then message="$message ${GREEN}✔${NO_COLOR} ($(get_path $manager))"
+    else                            message="$message ${RED}✗${NO_COLOR} ($(get_path $manager))"
+    fi
+
+    # Print message
+    if   is_bypassed $manager; then print_info    $message
+    elif detect_path $manager; then print_success $message
+    else                            print_warning $message
     fi
   done
+
+  # Ask for confirmation
+  $SIMULATE \
+    && print_confirm "Simulate $COMMAND?" \
+    || print_confirm "Proceed for $COMMAND"
 }
 
 ###################################################
@@ -233,6 +221,13 @@ is_system_manager() {
   [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
 }
 
+#
+# Echos true if $1 is 0, false otherwise
+#
+code_to_boolean() {
+  [[ $1 == 0 ]] && echo true || echo false
+}
+
 ###################################################
 # utils/functions
 ###################################################
@@ -242,7 +237,7 @@ is_system_manager() {
 # - env variable (relative to home)
 # - default path
 #
-get_dir() {
+resolve_dir() {
   local dir=""
 
   # If env variable is defined
@@ -254,83 +249,95 @@ get_dir() {
     ! is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
-    dir="${DEFAULT[dir]}"
+    dir="${DEFAULTS[dir]}"
   fi
 
-  ARG[dir]="$dir"
+  PATHS[dir]="$dir"
 }
 
 #
-# Sets `ARG[$1]` according to (in this precedence order):
+# Sets `PATHS[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
 # - default variable (relative to `DIR`)
-# Assumes `CWD` is set
 #
-make_path() {
+resolve_path() {
   local manager="$1"
   local file=""
 
   # If file is given in args
-  if is_set "${ARG[$manager]}"; then
+  if is_set "${PATHS[$manager]}"; then
     # Use file arg
-    file="${ARG[$manager]}"
+    file="${PATHS[$manager]}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! is_url "$file" && file="$CWD/$file"
+    ! is_absolute "$file" && ! is_url "$file" && file="$(pwd)/$file"
   else
-    # Use default file, relative to ARG[dir]
-    file="${ARG[dir]}/${DEFAULT[$manager]}"
+    # Use default file, relative to PATHS[dir]
+    file="${PATHS[dir]}/${DEFAULTS[$manager]}"
   fi
 
-  ARG[$manager]="$file"
+  PATHS[$manager]="$file"
 }
 
 #
-# Sets `FOUND[$1]` to true if ${ARG[$1]} exists (file/url), to false otherwise
-# Returns true in this case, false otherwise
+# Returns true if ${PATHS[$1]} exists (file/url), false otherwise
+# With cache
 #
-check_file() {
+detect_path() {
   local manager="$1"
-  local file="${ARG[$manager]}"
+  local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${FOUND[$manager]}";then
-    "${FOUND[$manager]}"
+  if is_set "${__cache_path_exists[$manager]}";then
+    "${__cache_path_exists[$manager]}"
     return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    FOUND[$manager]=true
+    __cache_path_exists[$manager]=true
     true
   else
-    FOUND[$manager]=false
+    __cache_path_exists[$manager]=false
     false
   fi
 }
 
 #
-# Sets `DETECT$[$1]` to true if the manager is found on the system, to false otherwise
-# Returns true in this case, false otherwise
-# Does not detect twice, reuses `DETECT$[$manager]`
+# Returns true if the manager is found on the system, false otherwise
+# With cache (system managers only)
 #
 detect_manager() {
   local manager="$1"
 
   # If already detected, do not try to detect again
-  if is_set "${DETECT[$manager]}"; then
-    "${DETECT[$manager]}"
+  if is_set "${__cache_detect_manager[$manager]}"; then
+    "${__cache_detect_manager[$manager]}"
     return
   fi
 
   # Detection
   if command_exists "${manager}_detect" && ${manager}_detect; then
-    DETECT[$manager]=true
+    is_system_manager $manager && __cache_detect_manager[$manager]=true
     true
   else
-    DETECT[$manager]=false
+    is_system_manager $manager && __cache_detect_manager[$manager]=false
     false
   fi
+}
+
+#
+# Returns true if `${PATHS[$1]}` equals false
+#
+is_bypassed() {
+  [[ "${PATHS[$1]}" == false ]]
+}
+
+#
+# Echos `${PATHS[$1]}`
+#
+get_path() {
+  echo "${PATHS[$1]}"
 }
 
 ###################################################
@@ -390,15 +397,15 @@ parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        ARG[apt]="$3"; shift; shift;;
+        PATHS[apt]="$3"; shift; shift;;
       -y|--yum)
-        ARG[yum]="$3"; shift; shift;;
+        PATHS[yum]="$3"; shift; shift;;
       -p|--pacman)
-        ARG[pacman]="$3"; shift; shift;;
+        PATHS[pacman]="$3"; shift; shift;;
       -n|--node)
-        ARG[node]="$3"; shift; shift;;
+        PATHS[node]="$3"; shift; shift;;
       -r|--rust)
-        ARG[rust]="$3"; shift; shift;;
+        PATHS[rust]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -443,26 +450,17 @@ proceed() {
 #
 main() {
   parse_args $@
-  get_dir
-  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${ARG[dir]}"
+  resolve_dir
 
   for manager in "${MANAGERS[@]}"; do
-    if [[ "${ARG[$manager]}" = "false" ]]; then
-      BYPASS[$manager]=true
-    else
-      make_path "$manager"
-      check_file "$manager"
-    fi
+    is_bypassed $manager && continue
 
-    is_system_manager $manager && detect_manager "$manager"
+    resolve_path $manager
+    detect_path $manager
+    detect_manager $manager
   done
-
-  print_pre_proceed_message
-
-  local confirm_message="Proceed for $COMMAND?"
-  $SIMULATE && confirm_message="Simulate $COMMAND?"
-
-  if print_confirm "$confirm_message"; then
+  
+  if print_pre_proceed_message; then
     print_info Go!
     proceed
   else
