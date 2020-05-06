@@ -8,6 +8,10 @@
 # Checks, diffs, installs or updates your dependencies.
 # System, NodeJS, Rust.
 #
+# # Dependencies
+#
+# bash, wget (remote CSV only)
+#
 # # Usage
 #
 # $ depmanager check --directory ~/my/dir --node ~/my/node.csv

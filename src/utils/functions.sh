@@ -56,17 +56,17 @@ detect_path() {
   local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${__cache_path_exists[$manager]}";then
-    "${__cache_path_exists[$manager]}"
+  if is_set "${__cache_detect_path[$manager]}";then
+    "${__cache_detect_path[$manager]}"
     return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    __cache_path_exists[$manager]=true
+    __cache_detect_path[$manager]=true
     true
   else
-    __cache_path_exists[$manager]=false
+    __cache_detect_path[$manager]=false
     false
   fi
 }
@@ -95,6 +95,20 @@ detect_manager() {
 }
 
 #
+# Sets `SYSTEM_MANAGER` to the first system manager detected
+#
+detect_system() {
+  is_set $SYSTEM && return
+
+  for manager in "${SYSTEM_MANAGERS[@]}"; do
+    if detect_manager $manager; then
+      SYSTEM_MANAGER="$manager"
+      return
+    fi
+  done
+}
+
+#
 # Returns true if `${PATHS[$1]}` equals false
 #
 is_bypassed() {
@@ -107,3 +121,9 @@ is_bypassed() {
 get_path() {
   echo "${PATHS[$1]}"
 }
+
+# matrix_get_column() {
+  # local n_lines=$1
+  # local n_cols=$2
+  # local matrix=$@
+# }

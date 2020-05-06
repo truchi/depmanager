@@ -55,3 +55,42 @@ is_system_manager() {
 code_to_boolean() {
   [[ $1 == 0 ]] && echo true || echo false
 }
+
+matrix_get_row() {
+  local arr=$@
+  local row=$1
+  local n_rows=$2
+  local n_cols=$3
+  local first=$(($row * $n_cols))
+  local last=$((($row + 1) * $n_cols - 1))
+  local cells=""
+
+  local i=-4
+  for cell in ${arr[@]}; do
+    i=$(($i + 1))
+    (( $i < $first )) && continue
+    (( $i > $last  )) && break
+    cells="$cells $cell"
+  done
+
+  echo $cells
+}
+
+matrix_get_column() {
+  local arr=$@
+  local column=$1
+  local n_cols=$3
+  local cells=""
+
+  local i=-4
+  for cell in ${arr[@]}; do
+    i=$(($i + 1))
+    (( $i < 0)) && continue
+
+    local n=$(($i % $n_cols))
+    (( $n != $column )) && continue
+    cells="$cells $cell"
+  done
+
+  echo $cells
+}

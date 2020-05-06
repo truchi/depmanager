@@ -8,6 +8,10 @@
 # Checks, diffs, installs or updates your dependencies.
 # System, NodeJS, Rust.
 #
+# # Dependencies
+#
+# bash, wget (remote CSV only)
+#
 # # Usage
 #
 # $ depmanager check --directory ~/my/dir --node ~/my/node.csv
@@ -25,6 +29,7 @@ SYSTEM_MANAGERS=(apt yum pacman)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
+SYSTEM_MANAGER=
 COMMAND=
 QUIET=false
 YES=false
@@ -54,22 +59,27 @@ WHITE=$(tput setaf 7)
 # utils/print
 ###################################################
 
+print_separator() {
+  $QUIET && return
+  echo "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
+}
+
 print_date() {
   echo ${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}
 }
 
 print_error() {
-  echo "$(print_date) ${RED}✗${NO_COLOR} $@"
+  echo "$(print_date) ${RED}${BOLD}✗${NO_COLOR} $@"
 }
 
 print_warning() {
   $QUIET && return
-  echo "$(print_date) ${YELLOW}!${NO_COLOR} $@"
+  echo "$(print_date) ${YELLOW}${BOLD}!${NO_COLOR} $@"
 }
 
 print_success() {
   $QUIET && return
-  echo "$(print_date) ${GREEN}✔${NO_COLOR} $@"
+  echo "$(print_date) ${GREEN}${BOLD}✔${NO_COLOR} $@"
 }
 
 print_info() {
@@ -96,7 +106,7 @@ print_version() {
   echo "${YELLOW}v0.0.1${NO_COLOR}"
 }
 
-print_summary () {
+print_summary() {
   echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print_version)
 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
 }
@@ -116,8 +126,7 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR (containing these files) environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  c${WHITE},${NO_COLOR} check                       ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
-  d${WHITE},${NO_COLOR} diff                        ${WHITE}List installed packages yet not in the CSV files${NO_COLOR}
+  s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
   i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
   u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
 
@@ -132,14 +141,23 @@ ${BOLD}${BLUE}Options:${NO_COLOR}
   -S${WHITE},${NO_COLOR} --simulate                 ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}             ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Website${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Documentation${NO_COLOR}          ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                   ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Website${NO_COLOR}                      ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Documentation${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 
-print_pre_proceed_message () {
-  print_info "${BOLD}Depmanager directory${NO_COLOR}: $(get_path dir)"
+print_pre_run() {
+  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
+
+  if is_set $SYSTEM_MANAGER; then
+    local version=$($SYSTEM_MANAGER --version)
+    print_info "${BOLD}Detected system's package manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
+  else
+    print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
+  fi
+
+  print_separator
 
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
@@ -149,10 +167,10 @@ print_pre_proceed_message () {
     fi
 
     # Make message
-    local message="${BOLD}$manager${NO_COLOR}: "
-    if   is_bypassed $manager; then message="$message bypassed"
-    elif detect_path $manager; then message="$message ${GREEN}✔${NO_COLOR} ($(get_path $manager))"
-    else                            message="$message ${RED}✗${NO_COLOR} ($(get_path $manager))"
+    local message="${BOLD}$manager${NO_COLOR} "
+    if   is_bypassed $manager; then message="$message ${BLUE}bypassed${NO_COLOR}"
+    elif detect_path $manager; then message="$message ${GREEN}$(get_path $manager)${NO_COLOR}"
+    else                            message="$message ${YELLOW}$(get_path $manager)${NO_COLOR}"
     fi
 
     # Print message
@@ -162,10 +180,47 @@ print_pre_proceed_message () {
     fi
   done
 
+  print_separator
+
+  ! $SIMULATE && print_info "(Tip: run with --simulate first)"
+
   # Ask for confirmation
   $SIMULATE \
     && print_confirm "Simulate $COMMAND?" \
-    || print_confirm "Proceed for $COMMAND"
+    || print_confirm "Run $COMMAND?"
+}
+
+print_justified() {
+  local arr=$@
+  local n_rows=$1
+  local n_cols=$2
+  local max_lengths
+
+  for i in $(seq 0 $(($n_cols - 1))); do
+    local col=$(matrix_get_column $i $arr)
+    local max_length=-1
+
+    for word in $col; do
+      local length=${#word}
+      [[ $length > $max_length ]] && max_length=$length
+    done
+
+    max_lengths[$i]=$max_length
+  done
+
+  for i in $(seq 0 $(($n_rows - 1))); do
+    local row=($(matrix_get_row $i $arr))
+    local level="${row[0]}"
+    local message=""
+
+    for i in $(seq 1 $(($n_cols - 1))); do
+      local cell=${row[$i]}
+      local max_length=$((${max_lengths[$i]} + 2))
+      message="$message$(printf "%-${max_length}s" "$cell")"
+    done
+
+    print_${level} "$message"
+  done
 }
 
 ###################################################
@@ -228,6 +283,45 @@ code_to_boolean() {
   [[ $1 == 0 ]] && echo true || echo false
 }
 
+matrix_get_row() {
+  local arr=$@
+  local row=$1
+  local n_rows=$2
+  local n_cols=$3
+  local first=$(($row * $n_cols))
+  local last=$((($row + 1) * $n_cols - 1))
+  local cells=""
+
+  local i=-4
+  for cell in ${arr[@]}; do
+    i=$(($i + 1))
+    (( $i < $first )) && continue
+    (( $i > $last  )) && break
+    cells="$cells $cell"
+  done
+
+  echo $cells
+}
+
+matrix_get_column() {
+  local arr=$@
+  local column=$1
+  local n_cols=$3
+  local cells=""
+
+  local i=-4
+  for cell in ${arr[@]}; do
+    i=$(($i + 1))
+    (( $i < 0)) && continue
+
+    local n=$(($i % $n_cols))
+    (( $n != $column )) && continue
+    cells="$cells $cell"
+  done
+
+  echo $cells
+}
+
 ###################################################
 # utils/functions
 ###################################################
@@ -288,17 +382,17 @@ detect_path() {
   local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${__cache_path_exists[$manager]}";then
-    "${__cache_path_exists[$manager]}"
+  if is_set "${__cache_detect_path[$manager]}";then
+    "${__cache_detect_path[$manager]}"
     return
   fi
 
   # Check for existence of file/url
   if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
-    __cache_path_exists[$manager]=true
+    __cache_detect_path[$manager]=true
     true
   else
-    __cache_path_exists[$manager]=false
+    __cache_detect_path[$manager]=false
     false
   fi
 }
@@ -327,6 +421,20 @@ detect_manager() {
 }
 
 #
+# Sets `SYSTEM_MANAGER` to the first system manager detected
+#
+detect_system() {
+  is_set $SYSTEM && return
+
+  for manager in "${SYSTEM_MANAGERS[@]}"; do
+    if detect_manager $manager; then
+      SYSTEM_MANAGER="$manager"
+      return
+    fi
+  done
+}
+
+#
 # Returns true if `${PATHS[$1]}` equals false
 #
 is_bypassed() {
@@ -340,6 +448,12 @@ get_path() {
   echo "${PATHS[$1]}"
 }
 
+# matrix_get_column() {
+  # local n_lines=$1
+  # local n_cols=$2
+  # local matrix=$@
+# }
+
 ###################################################
 # managers/apt
 ###################################################
@@ -348,11 +462,32 @@ get_path() {
 # Returns true if apt is found on the system, false otherwise
 #
 apt_detect() {
-  if command_exists apt; then
-    return 0
-  else
-    return 1
-  fi
+  command_exists apt && command_exists apt-cache && command_exists dpkg
+}
+
+apt_status() {
+  local file=$(get_path apt)
+
+  while IFS=, read -r dependency; do
+    echo dep:$dependency
+    echo local:$(apt_get_local_version $dependency)
+    echo remote:$(apt_get_remote_version $dependency)
+  done < $file
+}
+
+apt_is_installed() {
+  local dependency=$1
+  local list=$(apt list --installed $dependency 2>/dev/null | sed 's/Listing...//')
+
+  echo $list | grep "^$dependency/" | grep '\[installed' >/dev/null 2>&1
+}
+
+apt_get_local_version() {
+  apt-cache policy $1 | sed '2q;d' | sed 's/  Installed: \(.*\).*/\1/'
+}
+
+apt_get_remote_version() {
+  apt-cache policy $1 | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
 }
 
 ###################################################
@@ -380,18 +515,17 @@ parse_args() {
   fi
 
   # Get command
-  if [[ "$1" == "check" || "$1" == "c" ]]; then
-    COMMAND="check"
-  elif [[ "$1" == "diff" || "$1" == "d" ]]; then
-    COMMAND="diff"
-  elif [[ "$1" == "install" || "$1" == "i" ]]; then
-    COMMAND="install"
-  elif [[ "$1" == "update" || "$1" == "u" ]]; then
-    COMMAND="update"
-  else
-    print_error Unknown command: $1
-    exit
-  fi
+  case "$1" in
+    s|status)
+      COMMAND="status";;
+    i|install)
+      COMMAND="install";;
+    u|update)
+      COMMAND="update";;
+    *)
+      print_error Unknown command: $1
+      exit
+  esac
 
   # Get options
   while [[ $# -gt 1 ]]; do
@@ -438,10 +572,61 @@ parse_args() {
   done
 }
 
-proceed() {
-  for manager in "${MANAGERS[@]}"; do
-    echo manager:$manager
+run() {
+  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
+
+  for manager in "${managers[@]}"; do
+    is_bypassed $manager      && continue
+    ! detect_manager $manager && continue
+    ! detect_path $manager    && continue
+
+    print_separator
+    print_info ${BOLD}$manager${NO_COLOR}
+
+    run_${COMMAND} $manager
+    # continue
+    # if command_exists ${manager}_${COMMAND}; then
+      # ${manager}_${COMMAND}
+    # else
+      # print_warning "Oops! $COMMAND is not implemented for ${manager}, ..."
+    # fi
   done
+}
+
+run_status() {
+  local manager=$1
+  local file=$(get_path $manager)
+
+  while IFS=, read -a line; do
+    local dependency=${line[0]}
+    local installed=false
+    local local_version="NONE"
+    local remote_version=$(${manager}_get_remote_version $dependency)
+    ! is_set $remote_version && remote_version="NONE"
+
+    if ${manager}_is_installed $dependency; then
+      installed=true
+      local_version=$(${manager}_get_local_version $dependency)
+    fi
+
+    local msg="$dependency 		 $local_version 		 $remote_version"
+
+    if ! $installed; then
+      print_error $msg
+    elif [[ $local_version == $remote_version ]]; then
+      print_success $msg
+    else
+      print_warning $msg
+    fi
+  done < $file
+}
+
+run_install() {
+  echo INSTALL
+}
+
+run_update() {
+  echo UPDATE
 }
 
 #
@@ -449,8 +634,26 @@ proceed() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # local arr=(
+    # "info a bb ccc"
+    # "success aa bb cc"
+    # "warning aaa bbb ccc"
+    # "info a b c"
+    # "success aa bb cc"
+    # "warning aaa bbb ccc"
+  # )
+
+  # local a=$(echo "${arr[@]}" | column -s ' ' -t)
+  # for i in ${a[@]}; do
+    # echo $i
+  # done
+  arr="info aaaaaa b c success aa bb cc warning aaa bbb ccc"
+  print_justified 3 4 "$arr"
+  exit
+
   parse_args $@
   resolve_dir
+  detect_system
 
   for manager in "${MANAGERS[@]}"; do
     is_bypassed $manager && continue
@@ -459,10 +662,11 @@ main() {
     detect_path $manager
     detect_manager $manager
   done
-  
-  if print_pre_proceed_message; then
+
+  if print_pre_run; then
     print_info Go!
-    proceed
+    run
+    # run_${COMMAND}
   else
     print_info Bye!
     exit
