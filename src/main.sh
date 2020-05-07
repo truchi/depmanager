@@ -102,6 +102,8 @@ run() {
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
+  local messages="info Package ${BOLD}${RED}Local${NO_COLOR} Remote"
+  local i=1
 
   while IFS=, read -a line; do
     local dependency=${line[0]}
@@ -115,16 +117,19 @@ run_status() {
       local_version=$(${manager}_get_local_version $dependency)
     fi
 
-    local msg="$dependency \t\t $local_version \t\t $remote_version"
-
     if ! $installed; then
-      print_error $msg
+      messages="$messages error"
     elif [[ $local_version == $remote_version ]]; then
-      print_success $msg
+      messages="$messages success"
     else
-      print_warning $msg
+      messages="$messages warning"
     fi
+
+    messages="$messages ${BOLD}$dependency${NO_COLOR} $local_version $remote_version"
+    i=$(($i + 1))
   done < $file
+
+  print_justified $i 4 "$messages"
 }
 
 run_install() {
@@ -140,21 +145,17 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  # local arr=(
-    # "info a bb ccc"
-    # "success aa bb cc"
-    # "warning aaa bbb ccc"
-    # "info a b c"
-    # "success aa bb cc"
-    # "warning aaa bbb ccc"
-  # )
-
-  # local a=$(echo "${arr[@]}" | column -s ' ' -t)
-  # for i in ${a[@]}; do
-    # echo $i
-  # done
-  arr="info aaaaaa b c success aa bb cc warning aaa bbb ccc"
-  print_justified 3 4 "$arr"
+  declare -A table
+  local title="The ${RED}title${NO_COLOR}"
+  local headers=("h1 a" "h2 b" "h3 cc")
+  # local headers=4
+  local levels=("info" "warning" "error")
+  local data=(
+    "row1 col1" "row1 col2" "row1 col3"
+    "row2 col1 ${RED}ddd${NO_COLOR}" "row2 col2" "row2 col3"
+    "row3 col1" "row3 col2" "testrow3 col3"
+  )
+  table_print "$title" headers[@] levels[@] data[@]
   exit
 
   parse_args $@

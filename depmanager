@@ -87,6 +87,11 @@ print_info() {
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
+print_custom() {
+  $QUIET && return
+  echo "$(print_date) $@"
+}
+
 print_confirm() {
   # Auto confirm if flag is given
   $YES && return
@@ -148,17 +153,19 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_run() {
-  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
+  print_info "${BOLD}Depmanager directory ${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
 
   if is_set $SYSTEM_MANAGER; then
     local version=$($SYSTEM_MANAGER --version)
-    print_info "${BOLD}Detected system's package manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
+    print_info "${BOLD}Your system's manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
   else
     print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
   fi
 
   print_separator
 
+  local i=0
+  local messages=""
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
     if is_system_manager $manager; then
@@ -166,20 +173,21 @@ print_pre_run() {
       [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    # Make message
     local message="${BOLD}$manager${NO_COLOR} "
     if   is_bypassed $manager; then message="$message ${BLUE}bypassed${NO_COLOR}"
     elif detect_path $manager; then message="$message ${GREEN}$(get_path $manager)${NO_COLOR}"
     else                            message="$message ${YELLOW}$(get_path $manager)${NO_COLOR}"
     fi
 
-    # Print message
-    if   is_bypassed $manager; then print_info    $message
-    elif detect_path $manager; then print_success $message
-    else                            print_warning $message
+    if   is_bypassed $manager; then  messages="$messages info $message"
+    elif detect_path $manager; then  messages="$messages success $message"
+    else                             messages="$messages warning $message"
     fi
+
+    i=$(($i + 1))
   done
 
+  print_justified $i 3 "$messages"
   print_separator
 
   ! $SIMULATE && print_info "(Tip: run with --simulate first)"
@@ -201,8 +209,9 @@ print_justified() {
     local max_length=-1
 
     for word in $col; do
+      word=$(echo -e "$word" | sed "s/$(echo -e "")[^m]*m//g")
       local length=${#word}
-      [[ $length > $max_length ]] && max_length=$length
+      (( $length > $max_length )) && max_length=$length
     done
 
     max_lengths[$i]=$max_length
@@ -215,8 +224,14 @@ print_justified() {
 
     for i in $(seq 1 $(($n_cols - 1))); do
       local cell=${row[$i]}
-      local max_length=$((${max_lengths[$i]} + 2))
-      message="$message$(printf "%-${max_length}s" "$cell")"
+      local word=$(echo -e "$cell" | sed "s/$(echo -e "")[^m]*m//g")
+      local cell_length=${#cell}
+      local word_length=${#word}
+      local max_length=${max_lengths[$i]}
+      local pad=$(($max_length + 2))
+      (( $word_length != $cell_length )) && pad=$(($pad + $cell_length - $word_length))
+
+      message="$message$(printf "%-${pad}s" "$cell")"
     done
 
     print_${level} "$message"
@@ -320,6 +335,130 @@ matrix_get_column() {
   done
 
   echo $cells
+}
+
+###################################################
+# utils/string
+###################################################
+
+string_raw_length() {
+  local str="$1"
+  echo ${#str}
+}
+
+string_length() {
+  local str="$1"
+  str=$(echo -e "$str" | sed "s/$(echo -e "")[^m]*m//g")
+  echo ${#str}
+}
+
+string_is_number() {
+  local arg=("${!1}") # May be an array
+  local re='^[0-9]+$'
+  [[ "${arg[@]}" =~ $re ]]
+}
+
+string_is_empty() {
+  [[ -z "$1" ]]
+}
+
+string_pad_right() {
+  local str="$1"
+  local n="$2"
+  printf "%-${n}s" "$str"
+}
+
+###################################################
+# utils/array
+###################################################
+
+array_length() {
+  local array=("${!1}")
+  echo "${#array[*]}"
+}
+
+###################################################
+# utils/table
+###################################################
+
+table_print() {
+  local pad=2
+  local title=$1
+  local headers=("${!2}")
+  local levels=("${!3}")
+  local data=("${!4}")
+
+  local column_count=$(string_is_number headers[@] && echo "$headers" || echo $(array_length headers[@]))
+  local row_count=$(array_length levels[@])
+
+  local total_length
+  local column_length=()
+  for column_index in $(seq 0 $(($column_count - 1))); do
+    local column=()
+    table_get_column $column_index $column_count data[@]
+
+    local length=-1
+    for cell in "${column[@]}"; do
+      local l=$(string_length "$cell")
+      (( $l > $length )) && length=$l
+    done
+
+    column_length[$column_index]=$length
+    total_length=$(($total_length + $length))
+  done
+  total_length=$(($total_length - $pad))
+
+  local title_pad="$(string_pad_right "" $((($total_length - $(string_length "$title")) / 2)))"
+  print_custom "  $title_pad$title"
+
+  for row_index in $(seq 0 $(($row_count - 1))); do
+    local message=""
+    local level="${levels[$row_index]}"
+    local row=()
+    table_get_row $row_index $column_count data[@]
+
+    for column_index in $(seq 0 $(($column_count - 1))); do
+      local cell="${row[$column_index]}"
+      local length=$(string_length "$cell")
+      local raw_length=$(string_raw_length "$cell")
+
+      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]} + $raw_length - $length)))"
+    done
+
+    print_${level} "$message"
+  done
+}
+
+table_get_row() {
+  local row_index=$1
+  local column_count=$2
+  local data=("${!3}")
+  local first=$(($row_index * $column_count))
+  local last=$((($row_index + 1) * $column_count - 1))
+
+  local i=-1
+  for cell in "${data[@]}"; do
+    i=$(($i + 1))
+
+    (( $i < $first )) && continue
+    (( $i > $last  )) && break
+    row+=("$cell")
+  done
+}
+
+table_get_column() {
+  local column_index=$1
+  local column_count=$2
+  local data=("${!3}")
+
+  local i=-1
+  for cell in "${data[@]}"; do
+    i=$(($i + 1))
+
+    (( $(($i % $column_count)) == $column_index )) \
+      && column+=("$cell") \
+      || continue
+  done
 }
 
 ###################################################
@@ -596,6 +735,8 @@ run() {
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
+  local messages="info Package ${BOLD}${RED}Local${NO_COLOR} Remote"
+  local i=1
 
   while IFS=, read -a line; do
     local dependency=${line[0]}
@@ -609,16 +750,19 @@ run_status() {
       local_version=$(${manager}_get_local_version $dependency)
     fi
 
-    local msg="$dependency 		 $local_version 		 $remote_version"
-
     if ! $installed; then
-      print_error $msg
+      messages="$messages error"
     elif [[ $local_version == $remote_version ]]; then
-      print_success $msg
+      messages="$messages success"
     else
-      print_warning $msg
+      messages="$messages warning"
     fi
+
+    messages="$messages ${BOLD}$dependency${NO_COLOR} $local_version $remote_version"
+    i=$(($i + 1))
   done < $file
+
+  print_justified $i 4 "$messages"
 }
 
 run_install() {
@@ -634,21 +778,17 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  # local arr=(
-    # "info a bb ccc"
-    # "success aa bb cc"
-    # "warning aaa bbb ccc"
-    # "info a b c"
-    # "success aa bb cc"
-    # "warning aaa bbb ccc"
-  # )
-
-  # local a=$(echo "${arr[@]}" | column -s ' ' -t)
-  # for i in ${a[@]}; do
-    # echo $i
-  # done
-  arr="info aaaaaa b c success aa bb cc warning aaa bbb ccc"
-  print_justified 3 4 "$arr"
+  declare -A table
+  local title="The ${RED}title${NO_COLOR}"
+  local headers=("h1 a" "h2 b" "h3 cc")
+  # local headers=4
+  local levels=("info" "warning" "error")
+  local data=(
+    "row1 col1" "row1 col2" "row1 col3"
+    "row2 col1 ${RED}ddd${NO_COLOR}" "row2 col2" "row2 col3"
+    "row3 col1" "row3 col2" "testrow3 col3"
+  )
+  table_print "$title" headers[@] levels[@] data[@]
   exit
 
   parse_args $@

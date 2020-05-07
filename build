@@ -14,10 +14,13 @@ OUT='./depmanager'
 
 SEPARATOR="###################################################"
 FILES=(
-  header 
-  vars 
+  header
+  vars
   utils/print
   utils/helpers
+  utils/string
+  utils/array
+  utils/table
   utils/functions
   managers/apt
   main

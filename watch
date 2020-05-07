@@ -15,14 +15,20 @@ function watch {
   clear
   ./build
   echo ${BLUE}Watching ${CYAN}$SRC${NO_COLOR}
+  echo
+  echo ${YELLOW}Program output:${NO_COLOR}
+  $@
 
   while inotifywait -qq -r -e modify $SRC; do
     clear
     echo ${YELLOW}Detected changes ${MAGENTA}$(date)${NO_COLOR}
     ./build
     echo ${BLUE}Watching ${CYAN}$SRC${NO_COLOR}
+    echo
+    echo ${YELLOW}Program output:${NO_COLOR}
+    $@
   done
 }
 
-watch
+watch $@
 

@@ -28,6 +28,11 @@ print_info() {
   echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $@"
 }
 
+print_custom() {
+  $QUIET && return
+  echo "$(print_date) $@"
+}
+
 print_confirm() {
   # Auto confirm if flag is given
   $YES && return
@@ -89,17 +94,19 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_pre_run() {
-  print_info "${BOLD}Depmanager directory${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
+  print_info "${BOLD}Depmanager directory ${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
 
   if is_set $SYSTEM_MANAGER; then
     local version=$($SYSTEM_MANAGER --version)
-    print_info "${BOLD}Detected system's package manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
+    print_info "${BOLD}Your system's manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
   else
     print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
   fi
 
   print_separator
 
+  local i=0
+  local messages=""
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
     if is_system_manager $manager; then
@@ -107,20 +114,21 @@ print_pre_run() {
       [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    # Make message
     local message="${BOLD}$manager${NO_COLOR} "
     if   is_bypassed $manager; then message="$message ${BLUE}bypassed${NO_COLOR}"
     elif detect_path $manager; then message="$message ${GREEN}$(get_path $manager)${NO_COLOR}"
     else                            message="$message ${YELLOW}$(get_path $manager)${NO_COLOR}"
     fi
 
-    # Print message
-    if   is_bypassed $manager; then print_info    $message
-    elif detect_path $manager; then print_success $message
-    else                            print_warning $message
+    if   is_bypassed $manager; then  messages="$messages info $message"
+    elif detect_path $manager; then  messages="$messages success $message"
+    else                             messages="$messages warning $message"
     fi
+
+    i=$(($i + 1))
   done
 
+  print_justified $i 3 "$messages"
   print_separator
 
   ! $SIMULATE && print_info "(Tip: run with --simulate first)"
@@ -142,8 +150,9 @@ print_justified() {
     local max_length=-1
 
     for word in $col; do
+      word=$(echo -e "$word" | sed "s/$(echo -e "\e")[^m]*m//g")
       local length=${#word}
-      [[ $length > $max_length ]] && max_length=$length
+      (( $length > $max_length )) && max_length=$length
     done
 
     max_lengths[$i]=$max_length
@@ -156,10 +165,17 @@ print_justified() {
 
     for i in $(seq 1 $(($n_cols - 1))); do
       local cell=${row[$i]}
-      local max_length=$((${max_lengths[$i]} + 2))
-      message="$message$(printf "%-${max_length}s" "$cell")"
+      local word=$(echo -e "$cell" | sed "s/$(echo -e "\e")[^m]*m//g")
+      local cell_length=${#cell}
+      local word_length=${#word}
+      local max_length=${max_lengths[$i]}
+      local pad=$(($max_length + 2))
+      (( $word_length != $cell_length )) && pad=$(($pad + $cell_length - $word_length))
+
+      message="$message$(printf "%-${pad}s" "$cell")"
     done
 
     print_${level} "$message"
   done
 }
+
