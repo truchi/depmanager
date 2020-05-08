@@ -38,7 +38,7 @@ resolve_path() {
     file="${PATHS[$manager]}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! is_url "$file" && file="$(pwd)/$file"
+    ! is_absolute "$file" && ! string_is_url "$file" && file="$(pwd)/$file"
   else
     # Use default file, relative to PATHS[dir]
     file="${PATHS[dir]}/${DEFAULTS[$manager]}"
@@ -62,7 +62,7 @@ detect_path() {
   fi
 
   # Check for existence of file/url
-  if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
+  if (string_is_url "$file" && url_exists "$file") || file_exists "$file"; then
     __cache_detect_path[$manager]=true
     true
   else
@@ -122,8 +122,3 @@ get_path() {
   echo "${PATHS[$1]}"
 }
 
-# matrix_get_column() {
-  # local n_lines=$1
-  # local n_cols=$2
-  # local matrix=$@
-# }

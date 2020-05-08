@@ -20,6 +20,20 @@ string_is_number() {
   [[ $1 =~ $re ]]
 }
 
+#
+# Returns true if $1 starts with /, false otherwise
+#
+string_is_absolute() {
+  [[ "$1" =~ / ]]
+}
+
+#
+# Returns true if $1 starts with https?://, false otherwise
+#
+string_is_url() {
+  [[ "$1" =~ https?:// ]]
+}
+
 string_center() {
   local str="$1"
   local width="$2"

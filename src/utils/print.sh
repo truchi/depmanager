@@ -106,7 +106,8 @@ print_pre_run() {
   print_separator
 
   local i=0
-  local messages=""
+  local levels=()
+  local messages=()
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
     if is_system_manager $manager; then
@@ -114,21 +115,21 @@ print_pre_run() {
       [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    local message="${BOLD}$manager${NO_COLOR} "
-    if   is_bypassed $manager; then message="$message ${BLUE}bypassed${NO_COLOR}"
-    elif detect_path $manager; then message="$message ${GREEN}$(get_path $manager)${NO_COLOR}"
-    else                            message="$message ${YELLOW}$(get_path $manager)${NO_COLOR}"
+    messages+=("${BOLD}$manager${NO_COLOR}")
+    if   is_bypassed $manager; then messages+=("${BLUE}bypassed${NO_COLOR}")
+    elif detect_path $manager; then messages+=("${GREEN}$(get_path $manager)${NO_COLOR}")
+    else                            messages+=("${YELLOW}$(get_path $manager)${NO_COLOR}")
     fi
 
-    if   is_bypassed $manager; then  messages="$messages info $message"
-    elif detect_path $manager; then  messages="$messages success $message"
-    else                             messages="$messages warning $message"
+    if   is_bypassed $manager; then  levels+=("info")
+    elif detect_path $manager; then  levels+=("success")
+    else                             levels+=("warning")
     fi
 
     i=$(($i + 1))
   done
 
-  print_justified $i 3 "$messages"
+  table_print "" 2 levels[@] messages[@]
   print_separator
 
   ! $SIMULATE && print_info "(Tip: run with --simulate first)"
@@ -137,45 +138,5 @@ print_pre_run() {
   $SIMULATE \
     && print_confirm "Simulate $COMMAND?" \
     || print_confirm "Run $COMMAND?"
-}
-
-print_justified() {
-  local arr=$@
-  local n_rows=$1
-  local n_cols=$2
-  local max_lengths
-
-  for i in $(seq 0 $(($n_cols - 1))); do
-    local col=$(matrix_get_column $i $arr)
-    local max_length=-1
-
-    for word in $col; do
-      word=$(echo -e "$word" | sed "s/$(echo -e "\e")[^m]*m//g")
-      local length=${#word}
-      (( $length > $max_length )) && max_length=$length
-    done
-
-    max_lengths[$i]=$max_length
-  done
-
-  for i in $(seq 0 $(($n_rows - 1))); do
-    local row=($(matrix_get_row $i $arr))
-    local level="${row[0]}"
-    local message=""
-
-    for i in $(seq 1 $(($n_cols - 1))); do
-      local cell=${row[$i]}
-      local word=$(echo -e "$cell" | sed "s/$(echo -e "\e")[^m]*m//g")
-      local cell_length=${#cell}
-      local word_length=${#word}
-      local max_length=${max_lengths[$i]}
-      local pad=$(($max_length + 2))
-      (( $word_length != $cell_length )) && pad=$(($pad + $cell_length - $word_length))
-
-      message="$message$(printf "%-${pad}s" "$cell")"
-    done
-
-    print_${level} "$message"
-  done
 }
 

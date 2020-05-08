@@ -165,7 +165,8 @@ print_pre_run() {
   print_separator
 
   local i=0
-  local messages=""
+  local levels=()
+  local messages=()
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
     if is_system_manager $manager; then
@@ -173,21 +174,21 @@ print_pre_run() {
       [[ $(code_to_boolean $?) != true ]] && continue
     fi
 
-    local message="${BOLD}$manager${NO_COLOR} "
-    if   is_bypassed $manager; then message="$message ${BLUE}bypassed${NO_COLOR}"
-    elif detect_path $manager; then message="$message ${GREEN}$(get_path $manager)${NO_COLOR}"
-    else                            message="$message ${YELLOW}$(get_path $manager)${NO_COLOR}"
+    messages+=("${BOLD}$manager${NO_COLOR}")
+    if   is_bypassed $manager; then messages+=("${BLUE}bypassed${NO_COLOR}")
+    elif detect_path $manager; then messages+=("${GREEN}$(get_path $manager)${NO_COLOR}")
+    else                            messages+=("${YELLOW}$(get_path $manager)${NO_COLOR}")
     fi
 
-    if   is_bypassed $manager; then  messages="$messages info $message"
-    elif detect_path $manager; then  messages="$messages success $message"
-    else                             messages="$messages warning $message"
+    if   is_bypassed $manager; then  levels+=("info")
+    elif detect_path $manager; then  levels+=("success")
+    else                             levels+=("warning")
     fi
 
     i=$(($i + 1))
   done
 
-  print_justified $i 3 "$messages"
+  table_print "" 2 levels[@] messages[@]
   print_separator
 
   ! $SIMULATE && print_info "(Tip: run with --simulate first)"
@@ -198,63 +199,9 @@ print_pre_run() {
     || print_confirm "Run $COMMAND?"
 }
 
-print_justified() {
-  local arr=$@
-  local n_rows=$1
-  local n_cols=$2
-  local max_lengths
-
-  for i in $(seq 0 $(($n_cols - 1))); do
-    local col=$(matrix_get_column $i $arr)
-    local max_length=-1
-
-    for word in $col; do
-      word=$(echo -e "$word" | sed "s/$(echo -e "")[^m]*m//g")
-      local length=${#word}
-      (( $length > $max_length )) && max_length=$length
-    done
-
-    max_lengths[$i]=$max_length
-  done
-
-  for i in $(seq 0 $(($n_rows - 1))); do
-    local row=($(matrix_get_row $i $arr))
-    local level="${row[0]}"
-    local message=""
-
-    for i in $(seq 1 $(($n_cols - 1))); do
-      local cell=${row[$i]}
-      local word=$(echo -e "$cell" | sed "s/$(echo -e "")[^m]*m//g")
-      local cell_length=${#cell}
-      local word_length=${#word}
-      local max_length=${max_lengths[$i]}
-      local pad=$(($max_length + 2))
-      (( $word_length != $cell_length )) && pad=$(($pad + $cell_length - $word_length))
-
-      message="$message$(printf "%-${pad}s" "$cell")"
-    done
-
-    print_${level} "$message"
-  done
-}
-
 ###################################################
 # utils/helpers
 ###################################################
-
-#
-# Returns true if $1 starts with /, false otherwise
-#
-is_absolute() {
-  [[ "$1" =~ / ]]
-}
-
-#
-# Returns true if $1 starts with https?://, false otherwise
-#
-is_url() {
-  [[ "$1" =~ https?:// ]]
-}
 
 #
 # Returns true is $1 is set, false otherwise
@@ -298,45 +245,6 @@ code_to_boolean() {
   [[ $1 == 0 ]] && echo true || echo false
 }
 
-matrix_get_row() {
-  local arr=$@
-  local row=$1
-  local n_rows=$2
-  local n_cols=$3
-  local first=$(($row * $n_cols))
-  local last=$((($row + 1) * $n_cols - 1))
-  local cells=""
-
-  local i=-4
-  for cell in ${arr[@]}; do
-    i=$(($i + 1))
-    (( $i < $first )) && continue
-    (( $i > $last  )) && break
-    cells="$cells $cell"
-  done
-
-  echo $cells
-}
-
-matrix_get_column() {
-  local arr=$@
-  local column=$1
-  local n_cols=$3
-  local cells=""
-
-  local i=-4
-  for cell in ${arr[@]}; do
-    i=$(($i + 1))
-    (( $i < 0)) && continue
-
-    local n=$(($i % $n_cols))
-    (( $n != $column )) && continue
-    cells="$cells $cell"
-  done
-
-  echo $cells
-}
-
 ###################################################
 # utils/string
 ###################################################
@@ -359,6 +267,20 @@ string_length() {
 string_is_number() {
   local re='^[0-9]+$'
   [[ $1 =~ $re ]]
+}
+
+#
+# Returns true if $1 starts with /, false otherwise
+#
+string_is_absolute() {
+  [[ "$1" =~ / ]]
+}
+
+#
+# Returns true if $1 starts with https?://, false otherwise
+#
+string_is_url() {
+  [[ "$1" =~ https?:// ]]
 }
 
 string_center() {
@@ -525,7 +447,7 @@ resolve_path() {
     file="${PATHS[$manager]}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! is_url "$file" && file="$(pwd)/$file"
+    ! is_absolute "$file" && ! string_is_url "$file" && file="$(pwd)/$file"
   else
     # Use default file, relative to PATHS[dir]
     file="${PATHS[dir]}/${DEFAULTS[$manager]}"
@@ -549,7 +471,7 @@ detect_path() {
   fi
 
   # Check for existence of file/url
-  if (is_url "$file" && url_exists "$file") || file_exists "$file"; then
+  if (string_is_url "$file" && url_exists "$file") || file_exists "$file"; then
     __cache_detect_path[$manager]=true
     true
   else
@@ -608,12 +530,6 @@ is_bypassed() {
 get_path() {
   echo "${PATHS[$1]}"
 }
-
-# matrix_get_column() {
-  # local n_lines=$1
-  # local n_cols=$2
-  # local matrix=$@
-# }
 
 ###################################################
 # managers/apt
@@ -742,7 +658,6 @@ run() {
     ! detect_path $manager    && continue
 
     print_separator
-    print_info ${BOLD}$manager${NO_COLOR}
 
     run_${COMMAND} $manager
     # continue
@@ -757,34 +672,38 @@ run() {
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
-  local messages="info Package ${BOLD}${RED}Local${NO_COLOR} Remote"
-  local i=1
+  local title="${BLUE}${BOLD}$manager${NO_COLOR}"
+  local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local messages=()
 
+  local i=1
   while IFS=, read -a line; do
     local dependency=${line[0]}
     local installed=false
     local local_version="NONE"
     local remote_version=$(${manager}_get_remote_version $dependency)
+    local up_to_date
+
     ! is_set $remote_version && remote_version="NONE"
 
     if ${manager}_is_installed $dependency; then
       installed=true
       local_version=$(${manager}_get_local_version $dependency)
+      up_to_date=$([[ $local_version == $remote_version ]] && echo true || echo false)
     fi
 
-    if ! $installed; then
-      messages="$messages error"
-    elif [[ $local_version == $remote_version ]]; then
-      messages="$messages success"
-    else
-      messages="$messages warning"
+    if   ! $installed; then levels+=("error")
+    elif $up_to_date ; then levels+=("success")
+    else                    levels+=("warning")
     fi
 
-    messages="$messages ${BOLD}$dependency${NO_COLOR} $local_version $remote_version"
+    messages+=("${BOLD}$dependency${NO_COLOR}")
+    messages+=("$local_version")
+    messages+=("$remote_version")
     i=$(($i + 1))
   done < $file
 
-  print_justified $i 4 "$messages"
+  table_print "$title" headers[@] levels[@] messages[@]
 }
 
 run_install() {
@@ -800,19 +719,6 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  declare -A table
-  local title="The ${RED}title${NO_COLOR}"
-  local headers=("h1 a" "h2 b" "h3 cc")
-  # local headers=4
-  local levels=("info" "warning" "error")
-  local data=(
-    "row1 col1" "row1 col2" "row1 col3"
-    "row2 col1 ${RED}ddd${NO_COLOR}" "row2 col2" "row2 col3"
-    "row3 col1" "row3 col2" "testrow3 col3"
-  )
-  table_print "$title" headers[@] levels[@] data[@]
-  exit
-
   parse_args $@
   resolve_dir
   detect_system

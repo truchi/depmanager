@@ -87,7 +87,6 @@ run() {
     ! detect_path $manager    && continue
 
     print_separator
-    print_info ${BOLD}$manager${NO_COLOR}
 
     run_${COMMAND} $manager
     # continue
@@ -102,34 +101,38 @@ run() {
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
-  local messages="info Package ${BOLD}${RED}Local${NO_COLOR} Remote"
-  local i=1
+  local title="${BLUE}${BOLD}$manager${NO_COLOR}"
+  local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local messages=()
 
+  local i=1
   while IFS=, read -a line; do
     local dependency=${line[0]}
     local installed=false
     local local_version="NONE"
     local remote_version=$(${manager}_get_remote_version $dependency)
+    local up_to_date
+
     ! is_set $remote_version && remote_version="NONE"
 
     if ${manager}_is_installed $dependency; then
       installed=true
       local_version=$(${manager}_get_local_version $dependency)
+      up_to_date=$([[ $local_version == $remote_version ]] && echo true || echo false)
     fi
 
-    if ! $installed; then
-      messages="$messages error"
-    elif [[ $local_version == $remote_version ]]; then
-      messages="$messages success"
-    else
-      messages="$messages warning"
+    if   ! $installed; then levels+=("error")
+    elif $up_to_date ; then levels+=("success")
+    else                    levels+=("warning")
     fi
 
-    messages="$messages ${BOLD}$dependency${NO_COLOR} $local_version $remote_version"
+    messages+=("${BOLD}$dependency${NO_COLOR}")
+    messages+=("$local_version")
+    messages+=("$remote_version")
     i=$(($i + 1))
   done < $file
 
-  print_justified $i 4 "$messages"
+  table_print "$title" headers[@] levels[@] messages[@]
 }
 
 run_install() {
@@ -145,19 +148,6 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  declare -A table
-  local title="The ${RED}title${NO_COLOR}"
-  local headers=("h1 a" "h2 b" "h3 cc")
-  # local headers=4
-  local levels=("info" "warning" "error")
-  local data=(
-    "row1 col1" "row1 col2" "row1 col3"
-    "row2 col1 ${RED}ddd${NO_COLOR}" "row2 col2" "row2 col3"
-    "row3 col1" "row3 col2" "testrow3 col3"
-  )
-  table_print "$title" headers[@] levels[@] data[@]
-  exit
-
   parse_args $@
   resolve_dir
   detect_system
