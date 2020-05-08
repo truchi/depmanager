@@ -341,6 +341,10 @@ matrix_get_column() {
 # utils/string
 ###################################################
 
+string_is_empty() {
+  [[ -z "$1" ]]
+}
+
 string_raw_length() {
   local str="$1"
   echo ${#str}
@@ -353,19 +357,29 @@ string_length() {
 }
 
 string_is_number() {
-  local arg=("${!1}") # May be an array
   local re='^[0-9]+$'
-  [[ "${arg[@]}" =~ $re ]]
+  [[ $1 =~ $re ]]
 }
 
-string_is_empty() {
-  [[ -z "$1" ]]
+string_center() {
+  local str="$1"
+  local width="$2"
+  local length=$(string_length "$str")
+  local left_padding=$((($width - $length) / 2))
+  local right_padding=$(($width - $left_padding))
+
+  local left=$(string_pad_right "" $left_padding)
+  local right=$(string_pad_right "$str" $right_padding)
+  echo "$left$right"
 }
 
 string_pad_right() {
   local str="$1"
-  local n="$2"
-  printf "%-${n}s" "$str"
+  local width="$2"
+  local length=$(string_length "$str")
+  local raw_length=$(string_raw_length "$str")
+
+  printf "%-$(($width + $raw_length - $length))s" "$str"
 }
 
 ###################################################
@@ -385,10 +399,13 @@ table_print() {
   local pad=2
   local title=$1
   local headers=("${!2}")
+  local column_count=$2
   local levels=("${!3}")
   local data=("${!4}")
 
-  local column_count=$(string_is_number headers[@] && echo "$headers" || echo $(array_length headers[@]))
+  local has_title=$(string_is_empty "$title" && echo false || echo true)
+  local has_headers=$(string_is_number $column_count && echo false || echo true)
+  $has_headers && column_count=$(array_length headers[@])
   local row_count=$(array_length levels[@])
 
   local total_length
@@ -408,8 +425,16 @@ table_print() {
   done
   total_length=$(($total_length - $pad))
 
-  local title_pad="$(string_pad_right "" $((($total_length - $(string_length "$title")) / 2)))"
-  print_custom "  $title_pad$title"
+  $has_title && print_custom "  $(string_center "$title" $total_length)"
+
+  if $has_headers; then
+    local header_row=""
+    for column_index in $(seq 0 $(($column_count - 1))); do
+      header=${headers[$column_index]}
+      header_row="$header_row$(string_center "$header" $(($pad + ${column_length[$column_index]})))"
+    done
+    print_custom "  ${header_row[@]}"
+  fi
 
   for row_index in $(seq 0 $(($row_count - 1))); do
     local message=""
@@ -419,10 +444,7 @@ table_print() {
 
     for column_index in $(seq 0 $(($column_count - 1))); do
       local cell="${row[$column_index]}"
-      local length=$(string_length "$cell")
-      local raw_length=$(string_raw_length "$cell")
-
-      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]} + $raw_length - $length)))"
+      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]})))"
     done
 
     print_${level} "$message"

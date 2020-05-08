@@ -4,10 +4,13 @@ table_print() {
   local pad=2
   local title=$1
   local headers=("${!2}")
+  local column_count=$2
   local levels=("${!3}")
   local data=("${!4}")
 
-  local column_count=$(string_is_number headers[@] && echo "$headers" || echo $(array_length headers[@]))
+  local has_title=$(string_is_empty "$title" && echo false || echo true)
+  local has_headers=$(string_is_number $column_count && echo false || echo true)
+  $has_headers && column_count=$(array_length headers[@])
   local row_count=$(array_length levels[@])
 
   local total_length
@@ -27,8 +30,16 @@ table_print() {
   done
   total_length=$(($total_length - $pad))
 
-  local title_pad="$(string_pad_right "" $((($total_length - $(string_length "$title")) / 2)))"
-  print_custom "  $title_pad$title"
+  $has_title && print_custom "  $(string_center "$title" $total_length)"
+
+  if $has_headers; then
+    local header_row=""
+    for column_index in $(seq 0 $(($column_count - 1))); do
+      header=${headers[$column_index]}
+      header_row="$header_row$(string_center "$header" $(($pad + ${column_length[$column_index]})))"
+    done
+    print_custom "  ${header_row[@]}"
+  fi
 
   for row_index in $(seq 0 $(($row_count - 1))); do
     local message=""
@@ -38,10 +49,7 @@ table_print() {
 
     for column_index in $(seq 0 $(($column_count - 1))); do
       local cell="${row[$column_index]}"
-      local length=$(string_length "$cell")
-      local raw_length=$(string_raw_length "$cell")
-
-      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]} + $raw_length - $length)))"
+      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]})))"
     done
 
     print_${level} "$message"
