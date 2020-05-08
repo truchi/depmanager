@@ -63,25 +63,28 @@ print_help() {
   echo "${BOLD}${BLUE}Usage:${NO_COLOR}
   ${BOLD}${GREEN}$command${NO_COLOR} [-h|--version]
   ${BOLD}${GREEN}$command${NO_COLOR} [-v|--help]
-  ${BOLD}${GREEN}$command${NO_COLOR} <command> [options]
+  ${BOLD}${GREEN}$command${NO_COLOR} <command> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your dependencies.
 
-  List packages you depend on in CSV files (system.csv, node.csv, rust.csv).
-  Export \$DEPMANAGER_DIR (containing these files) environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
+  List packages you depend on in CSV files.
+  Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
+  ${WHITE}${NO_COLOR}interactive                    ${WHITE}Runs in interactive mode (respects options and flags)${NO_COLOR}
   s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
   i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
   u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
 
 ${BOLD}${BLUE}Options:${NO_COLOR}
-  -a${WHITE},${NO_COLOR} --apt <path|url|false>     ${WHITE}Blah${NO_COLOR}
-  -y${WHITE},${NO_COLOR} --yum <path|url|false>     ${WHITE}Blah${NO_COLOR}
+  -a${WHITE},${NO_COLOR} --apt    <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -y${WHITE},${NO_COLOR} --yum    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --node <path|url|false>    ${WHITE}Blah${NO_COLOR}
-  -r${WHITE},${NO_COLOR} --rust <path|url|false>    ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --node   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -r${WHITE},${NO_COLOR} --rust   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+
+${BOLD}${BLUE}Flags:${NO_COLOR}
   -Q${WHITE},${NO_COLOR} --quiet                    ${WHITE}Blah${NO_COLOR}
   -Y${WHITE},${NO_COLOR} --yes                      ${WHITE}Blah${NO_COLOR}
   -S${WHITE},${NO_COLOR} --simulate                 ${WHITE}Blah${NO_COLOR}

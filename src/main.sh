@@ -80,15 +80,18 @@ parse_args() {
 
 run() {
   local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
+  local length=$(array_length managers[@])
 
-  for manager in "${managers[@]}"; do
+  for i in $(seq 0 $(($length - 1))); do
+    local manager="${managers[$i]}"
     is_bypassed $manager      && continue
     ! detect_path $manager    && continue
     ! detect_manager $manager && continue
 
-    print_separator
 
+    [[ $i != 0 ]] && print_separator
     run_${COMMAND} $manager
+
     # continue
     # if command_exists ${manager}_${COMMAND}; then
       # ${manager}_${COMMAND}
@@ -163,12 +166,14 @@ main() {
   print_system_info
   print_separator
   print_csv_info
+  print_separator
 
   if [[ $COMMAND == "status" ]]; then
+    local old_quiet=$QUIET
+    QUIET=false
     run
+    QUIET=$old_quiet
   else
-    print_separator
-
     if print_pre_run_confirm; then
       print_info Go!
       run
