@@ -83,8 +83,8 @@ run() {
 
   for manager in "${managers[@]}"; do
     is_bypassed $manager      && continue
-    ! detect_manager $manager && continue
     ! detect_path $manager    && continue
+    ! detect_manager $manager && continue
 
     print_separator
 
@@ -118,7 +118,7 @@ run_status() {
     if ${manager}_is_installed $dependency; then
       installed=true
       local_version=$(${manager}_get_local_version $dependency)
-      up_to_date=$([[ $local_version == $remote_version ]] && echo true || echo false)
+      up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 
     if   ! $installed; then levels+=("error")
@@ -160,14 +160,26 @@ main() {
     detect_manager $manager
   done
 
-  if print_pre_run; then
-    print_info Go!
+  print_system_info
+  print_separator
+  print_csv_info
+
+  if [[ $COMMAND == "status" ]]; then
     run
-    # run_${COMMAND}
   else
-    print_info Bye!
-    exit
+    print_separator
+
+    if print_pre_run_confirm; then
+      print_info Go!
+      run
+    else
+      print_info Bye!
+      exit
+    fi
   fi
+
+  print_separator
+  print_info Done!
 }
 
 # Run

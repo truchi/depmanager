@@ -93,7 +93,7 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 "
 }
 
-print_pre_run() {
+print_system_info() {
   print_info "${BOLD}Depmanager directory ${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
 
   if is_set $SYSTEM_MANAGER; then
@@ -102,9 +102,9 @@ print_pre_run() {
   else
     print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
   fi
+}
 
-  print_separator
-
+print_csv_info() {
   local i=0
   local levels=()
   local messages=()
@@ -130,8 +130,9 @@ print_pre_run() {
   done
 
   table_print "" 2 levels[@] messages[@]
-  print_separator
+}
 
+print_pre_run_confirm() {
   ! $SIMULATE && print_info "(Tip: run with --simulate first)"
 
   # Ask for confirmation
