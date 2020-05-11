@@ -1,49 +1,57 @@
 #!/bin/bash
 
 string_is_empty() {
-  [[ -z "$1" ]]
+  [[ -z "$@" ]]
 }
 
 string_raw_length() {
-  local str="$1"
+  local str="$@"
   echo ${#str}
 }
 
 string_length() {
-  local str="$1"
-  str=$(echo -e "$str" | sed "s/$(echo -e "\e")[^m]*m//g")
+  local str=$(string_strip_sequences "$@")
   echo ${#str}
+}
+
+string_strip_sequences() {
+  echo -e "$@" | sed "s/$(echo -e "\e")[^m]*m//g"
 }
 
 string_is_number() {
   local re='^[0-9]+$'
-  [[ $1 =~ $re ]]
+  [[ $@ =~ $re ]]
 }
 
 #
-# Returns true if $1 starts with /, false otherwise
+# Returns true if $@ starts with /, false otherwise
 #
 string_is_absolute() {
-  [[ "$1" =~ / ]]
+  [[ "$@" =~ / ]]
 }
 
 #
-# Returns true if $1 starts with https?://, false otherwise
+# Returns true if $@ starts with https?://, false otherwise
 #
 string_is_url() {
-  [[ "$1" =~ https?:// ]]
+  [[ "$@" =~ https?:// ]]
 }
 
 string_center() {
   local str="$1"
   local width="$2"
   local length=$(string_length "$str")
-  local left_padding=$((($width - $length) / 2))
-  local right_padding=$(($width - $left_padding))
 
-  local left=$(string_pad_right "" $left_padding)
-  local right=$(string_pad_right "$str" $right_padding)
-  echo "$left$right"
+  if (( $width < $length )); then
+    echo $str
+  else
+    local left_padding=$((($width - $length) / 2))
+    local right_padding=$(($width - $left_padding))
+
+    local left=$(string_pad_right "" $left_padding)
+    local right=$(string_pad_right "$str" $right_padding)
+    echo "$left$right"
+  fi
 }
 
 string_pad_right() {

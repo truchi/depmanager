@@ -22,6 +22,8 @@ parse_args() {
 
   # Get command
   case "$1" in
+    interactive)
+      COMMAND="interactive";;
     s|status)
       COMMAND="status";;
     i|install)
@@ -84,12 +86,13 @@ run() {
 
   for i in $(seq 0 $(($length - 1))); do
     local manager="${managers[$i]}"
+
     is_bypassed $manager      && continue
     ! detect_path $manager    && continue
-    ! detect_manager $manager && continue
-
 
     [[ $i != 0 ]] && print_separator
+    ! detect_manager $manager && print_warning "${BOLD}$manager${NO_COLOR} not found" && continue
+
     run_${COMMAND} $manager
 
     # continue
@@ -101,11 +104,53 @@ run() {
   done
 }
 
+run_interactive() {
+  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
+  local length=$(array_length managers[@])
+
+  for i in $(seq 0 $(($length - 1))); do
+    local ok=false
+    local manager="${managers[$i]}"
+    ! detect_manager $manager && continue
+
+    [[ $i != 0 ]] && print_separator
+    print_info "${BOLD}$manager${NO_COLOR}"
+
+    local first=true
+    local path
+    local default_path
+
+    while true; do
+      if is_bypassed $manager; then
+        default_path="${BLUE}false${NO_COLOR}"
+      else
+        resolve_path $manager
+
+        if detect_path $manager false; then
+          ! $first && break
+          default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
+        else
+          default_path="${BLUE}false${NO_COLOR}"
+          print_warning "Not found ${YELLOW}${PATHS[$manager]}${NO_COLOR}"
+        fi
+      fi
+
+      path=$(print_input "CSV ($default_path):")
+      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences $default_path)
+      PATHS[$manager]=$path
+
+      [[ "$path" == false ]] && break
+      first=false
+    done
+  done
+}
+
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
   local title="${BLUE}${BOLD}$manager${NO_COLOR}"
   local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local levels=()
   local messages=()
 
   local i=1
@@ -135,7 +180,11 @@ run_status() {
     i=$(($i + 1))
   done < $file
 
-  table_print "$title" headers[@] levels[@] messages[@]
+  if (( $i > 1 )); then
+    table_print "$title ($(${manager}_version))" headers[@] levels[@] messages[@]
+  else
+    print_warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
+  fi
 }
 
 run_install() {
@@ -151,20 +200,33 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # var=~
+  # realpath -m $var
+  # exit
   parse_args $@
   resolve_dir
   detect_system
+
+  if [[ "$COMMAND" == "interactive" ]]; then
+    QUIET=false
+    YES=false
+  fi
+
+  print_system_info
+  print_separator
 
   for manager in "${MANAGERS[@]}"; do
     is_bypassed $manager && continue
 
     resolve_path $manager
     detect_path $manager
-    detect_manager $manager
   done
 
-  print_system_info
-  print_separator
+  if [[ "$COMMAND" == "interactive" ]]; then
+    run_interactive
+    print_separator
+  fi
+
   print_csv_info
   print_separator
 

@@ -23,6 +23,7 @@ FILES=(
   utils/table
   utils/functions
   managers/apt
+  managers/node
   main
 )
 

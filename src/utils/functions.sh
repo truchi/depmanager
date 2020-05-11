@@ -14,7 +14,7 @@ resolve_dir() {
     dir="$DEPMANAGER_DIR"
 
     # Relative to home
-    ! is_absolute "$dir" && dir="$HOME/$dir"
+    ! string_is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
     dir="${DEFAULTS[dir]}"
@@ -36,9 +36,10 @@ resolve_path() {
   if is_set "${PATHS[$manager]}"; then
     # Use file arg
     file="${PATHS[$manager]}"
+    file="${file/#\~/$HOME}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! string_is_url "$file" && file="$(pwd)/$file"
+    ! string_is_absolute "$file" && ! string_is_url "$file" && file="$(realpath -m "$file")"
   else
     # Use default file, relative to PATHS[dir]
     file="${PATHS[dir]}/${DEFAULTS[$manager]}"
@@ -53,10 +54,12 @@ resolve_path() {
 #
 detect_path() {
   local manager="$1"
+  local read_cache="$2"
   local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${__cache_detect_path[$manager]}";then
+  # TODO parameter for cache?
+  if $read_cache && is_set "${__cache_detect_path[$manager]}";then
     "${__cache_detect_path[$manager]}"
     return
   fi
@@ -120,5 +123,13 @@ is_bypassed() {
 #
 get_path() {
   echo "${PATHS[$1]}"
+}
+
+#
+# Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
+#
+is_system_manager() {
+  # TODO array contains
+  [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
 }
 

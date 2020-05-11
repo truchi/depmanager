@@ -97,7 +97,7 @@ print_confirm() {
   $YES && return
 
   # Prompt confirmation message
-  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$1${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
+  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$@${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
   read -p "$message " -n 1 -r
 
   # Carriage return if user did not press enter
@@ -105,6 +105,18 @@ print_confirm() {
 
   # Accepts <Enter>, Y or y
   [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+}
+
+print_input() {
+  # Prompt input
+  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} $@"
+  read -p "$message " -r
+
+  echo "$REPLY"
+}
+
+print_choice() {
+  echo "print choice ..."
 }
 
 print_version() {
@@ -131,7 +143,7 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  ${WHITE}${NO_COLOR}interactive                    ${WHITE}Runs in interactive mode (respects options and flags)${NO_COLOR}
+  ${WHITE}${NO_COLOR}interactive                    ${WHITE}Runs in interactive mode${NO_COLOR}
   s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
   i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
   u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
@@ -156,13 +168,20 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_system_info() {
-  print_info "${BOLD}Depmanager directory ${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
+  local dir
+  is_set $DEPMANAGER_DIR && dir="from \$DEPMANAGER_DIR" || dir="default"
+  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(get_path dir)${NO_COLOR}" "($dir)")
 
   if is_set $SYSTEM_MANAGER; then
-    local version=$($SYSTEM_MANAGER --version)
-    print_info "${BOLD}Your system's manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
+    local levels=("info" "info")
+    local messages=("${dir[@]}")
+    local version=$(${SYSTEM_MANAGER}_version)
+    messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
+
+    table_print "" 3 levels[@] messages[@]
   else
-    print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
+    print_info "${dir[@]}"
+    print_warning "${BOLD}Your system's manager is not supported${NO_COLOR}"
   fi
 }
 
@@ -178,7 +197,7 @@ print_csv_info() {
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   is_bypassed $manager; then messages+=("${BLUE}bypassed${NO_COLOR}")
+    if   is_bypassed $manager; then messages+=("${BLUE}ignored${NO_COLOR}")
     elif detect_path $manager; then messages+=("${GREEN}$(get_path $manager)${NO_COLOR}")
     else                            messages+=("${YELLOW}$(get_path $manager)${NO_COLOR}")
     fi
@@ -236,13 +255,6 @@ command_exists() {
 }
 
 #
-# Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
-#
-is_system_manager() {
-  [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
-}
-
-#
 # Echos true if $1 is 0, false otherwise
 #
 code_to_boolean() {
@@ -254,49 +266,57 @@ code_to_boolean() {
 ###################################################
 
 string_is_empty() {
-  [[ -z "$1" ]]
+  [[ -z "$@" ]]
 }
 
 string_raw_length() {
-  local str="$1"
+  local str="$@"
   echo ${#str}
 }
 
 string_length() {
-  local str="$1"
-  str=$(echo -e "$str" | sed "s/$(echo -e "")[^m]*m//g")
+  local str=$(string_strip_sequences "$@")
   echo ${#str}
+}
+
+string_strip_sequences() {
+  echo -e "$@" | sed "s/$(echo -e "")[^m]*m//g"
 }
 
 string_is_number() {
   local re='^[0-9]+$'
-  [[ $1 =~ $re ]]
+  [[ $@ =~ $re ]]
 }
 
 #
-# Returns true if $1 starts with /, false otherwise
+# Returns true if $@ starts with /, false otherwise
 #
 string_is_absolute() {
-  [[ "$1" =~ / ]]
+  [[ "$@" =~ / ]]
 }
 
 #
-# Returns true if $1 starts with https?://, false otherwise
+# Returns true if $@ starts with https?://, false otherwise
 #
 string_is_url() {
-  [[ "$1" =~ https?:// ]]
+  [[ "$@" =~ https?:// ]]
 }
 
 string_center() {
   local str="$1"
   local width="$2"
   local length=$(string_length "$str")
-  local left_padding=$((($width - $length) / 2))
-  local right_padding=$(($width - $left_padding))
 
-  local left=$(string_pad_right "" $left_padding)
-  local right=$(string_pad_right "$str" $right_padding)
-  echo "$left$right"
+  if (( $width < $length )); then
+    echo $str
+  else
+    local left_padding=$((($width - $length) / 2))
+    local right_padding=$(($width - $left_padding))
+
+    local left=$(string_pad_right "" $left_padding)
+    local right=$(string_pad_right "$str" $right_padding)
+    echo "$left$right"
+  fi
 }
 
 string_pad_right() {
@@ -340,14 +360,16 @@ table_print() {
     local column=()
     table_get_column $column_index $column_count data[@]
 
-    local length=-1
+    local max_length=$(string_length "${headers[$column_index]}")
     for cell in "${column[@]}"; do
-      local l=$(string_length "$cell")
-      (( $l > $length )) && length=$l
+      local cell_length=$(string_length "$cell")
+      (( $cell_length > $max_length )) && max_length=$cell_length
     done
 
-    column_length[$column_index]=$length
-    total_length=$(($total_length + $length))
+    (( $max_length == -1 )) && max_length=0
+    max_length=$(($max_length + $pad))
+    total_length=$(($total_length + $max_length))
+    column_length[$column_index]=$max_length
   done
   total_length=$(($total_length - $pad))
 
@@ -357,7 +379,7 @@ table_print() {
     local header_row=""
     for column_index in $(seq 0 $(($column_count - 1))); do
       header=${headers[$column_index]}
-      header_row="$header_row$(string_center "$header" $(($pad + ${column_length[$column_index]})))"
+      header_row="$header_row$(string_center "$header" "${column_length[$column_index]}")"
     done
     print_custom "  ${header_row[@]}"
   fi
@@ -370,7 +392,7 @@ table_print() {
 
     for column_index in $(seq 0 $(($column_count - 1))); do
       local cell="${row[$column_index]}"
-      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]})))"
+      message="$message$(string_pad_right "$cell" "${column_length[$column_index]}")"
     done
 
     print_${level} "$message"
@@ -427,7 +449,7 @@ resolve_dir() {
     dir="$DEPMANAGER_DIR"
 
     # Relative to home
-    ! is_absolute "$dir" && dir="$HOME/$dir"
+    ! string_is_absolute "$dir" && dir="$HOME/$dir"
   else
     # Use default dir
     dir="${DEFAULTS[dir]}"
@@ -449,9 +471,10 @@ resolve_path() {
   if is_set "${PATHS[$manager]}"; then
     # Use file arg
     file="${PATHS[$manager]}"
+    file="${file/#\~/$HOME}"
 
     # Relative to current working dir
-    ! is_absolute "$file" && ! string_is_url "$file" && file="$(pwd)/$file"
+    ! string_is_absolute "$file" && ! string_is_url "$file" && file="$(realpath -m "$file")"
   else
     # Use default file, relative to PATHS[dir]
     file="${PATHS[dir]}/${DEFAULTS[$manager]}"
@@ -466,10 +489,12 @@ resolve_path() {
 #
 detect_path() {
   local manager="$1"
+  local read_cache="$2"
   local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  if is_set "${__cache_detect_path[$manager]}";then
+  # TODO parameter for cache?
+  if $read_cache && is_set "${__cache_detect_path[$manager]}";then
     "${__cache_detect_path[$manager]}"
     return
   fi
@@ -535,6 +560,14 @@ get_path() {
   echo "${PATHS[$1]}"
 }
 
+#
+# Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
+#
+is_system_manager() {
+  # TODO array contains
+  [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
+}
+
 ###################################################
 # managers/apt
 ###################################################
@@ -544,6 +577,10 @@ get_path() {
 #
 apt_detect() {
   command_exists apt && command_exists apt-cache && command_exists dpkg
+}
+
+apt_version() {
+  echo $(apt --version)
 }
 
 apt_status() {
@@ -572,6 +609,17 @@ apt_get_remote_version() {
 }
 
 ###################################################
+# managers/node
+###################################################
+
+#
+# Returns true if node is found on the system, false otherwise
+#
+node_detect() {
+  command_exists node
+}
+
+###################################################
 # main
 ###################################################
 
@@ -597,6 +645,8 @@ parse_args() {
 
   # Get command
   case "$1" in
+    interactive)
+      COMMAND="interactive";;
     s|status)
       COMMAND="status";;
     i|install)
@@ -659,12 +709,13 @@ run() {
 
   for i in $(seq 0 $(($length - 1))); do
     local manager="${managers[$i]}"
+
     is_bypassed $manager      && continue
     ! detect_path $manager    && continue
-    ! detect_manager $manager && continue
-
 
     [[ $i != 0 ]] && print_separator
+    ! detect_manager $manager && print_warning "${BOLD}$manager${NO_COLOR} not found" && continue
+
     run_${COMMAND} $manager
 
     # continue
@@ -676,11 +727,53 @@ run() {
   done
 }
 
+run_interactive() {
+  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
+  local length=$(array_length managers[@])
+
+  for i in $(seq 0 $(($length - 1))); do
+    local ok=false
+    local manager="${managers[$i]}"
+    ! detect_manager $manager && continue
+
+    [[ $i != 0 ]] && print_separator
+    print_info "${BOLD}$manager${NO_COLOR}"
+
+    local first=true
+    local path
+    local default_path
+
+    while true; do
+      if is_bypassed $manager; then
+        default_path="${BLUE}false${NO_COLOR}"
+      else
+        resolve_path $manager
+
+        if detect_path $manager false; then
+          ! $first && break
+          default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
+        else
+          default_path="${BLUE}false${NO_COLOR}"
+          print_warning "Not found ${YELLOW}${PATHS[$manager]}${NO_COLOR}"
+        fi
+      fi
+
+      path=$(print_input "CSV ($default_path):")
+      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences $default_path)
+      PATHS[$manager]=$path
+
+      [[ "$path" == false ]] && break
+      first=false
+    done
+  done
+}
+
 run_status() {
   local manager=$1
   local file=$(get_path $manager)
   local title="${BLUE}${BOLD}$manager${NO_COLOR}"
   local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local levels=()
   local messages=()
 
   local i=1
@@ -710,7 +803,11 @@ run_status() {
     i=$(($i + 1))
   done < $file
 
-  table_print "$title" headers[@] levels[@] messages[@]
+  if (( $i > 1 )); then
+    table_print "$title ($(${manager}_version))" headers[@] levels[@] messages[@]
+  else
+    print_warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
+  fi
 }
 
 run_install() {
@@ -726,20 +823,33 @@ run_update() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # var=~
+  # realpath -m $var
+  # exit
   parse_args $@
   resolve_dir
   detect_system
+
+  if [[ "$COMMAND" == "interactive" ]]; then
+    QUIET=false
+    YES=false
+  fi
+
+  print_system_info
+  print_separator
 
   for manager in "${MANAGERS[@]}"; do
     is_bypassed $manager && continue
 
     resolve_path $manager
     detect_path $manager
-    detect_manager $manager
   done
 
-  print_system_info
-  print_separator
+  if [[ "$COMMAND" == "interactive" ]]; then
+    run_interactive
+    print_separator
+  fi
+
   print_csv_info
   print_separator
 

@@ -7,6 +7,10 @@ apt_detect() {
   command_exists apt && command_exists apt-cache && command_exists dpkg
 }
 
+apt_version() {
+  echo $(apt --version)
+}
+
 apt_status() {
   local file=$(get_path apt)
 
