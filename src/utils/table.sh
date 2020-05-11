@@ -19,14 +19,16 @@ table_print() {
     local column=()
     table_get_column $column_index $column_count data[@]
 
-    local length=-1
+    local max_length=$(string_length "${headers[$column_index]}")
     for cell in "${column[@]}"; do
-      local l=$(string_length "$cell")
-      (( $l > $length )) && length=$l
+      local cell_length=$(string_length "$cell")
+      (( $cell_length > $max_length )) && max_length=$cell_length
     done
 
-    column_length[$column_index]=$length
-    total_length=$(($total_length + $length))
+    (( $max_length == -1 )) && max_length=0
+    max_length=$(($max_length + $pad))
+    total_length=$(($total_length + $max_length))
+    column_length[$column_index]=$max_length
   done
   total_length=$(($total_length - $pad))
 
@@ -36,7 +38,7 @@ table_print() {
     local header_row=""
     for column_index in $(seq 0 $(($column_count - 1))); do
       header=${headers[$column_index]}
-      header_row="$header_row$(string_center "$header" $(($pad + ${column_length[$column_index]})))"
+      header_row="$header_row$(string_center "$header" "${column_length[$column_index]}")"
     done
     print_custom "  ${header_row[@]}"
   fi
@@ -49,7 +51,7 @@ table_print() {
 
     for column_index in $(seq 0 $(($column_count - 1))); do
       local cell="${row[$column_index]}"
-      message="$message$(string_pad_right "$cell" $(($pad + ${column_length[$column_index]})))"
+      message="$message$(string_pad_right "$cell" "${column_length[$column_index]}")"
     done
 
     print_${level} "$message"
