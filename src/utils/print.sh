@@ -38,7 +38,7 @@ print_confirm() {
   $YES && return
 
   # Prompt confirmation message
-  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$1${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
+  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$@${NO_COLOR} ${YELLOW}(Y)${NO_COLOR}"
   read -p "$message " -n 1 -r
 
   # Carriage return if user did not press enter
@@ -46,6 +46,18 @@ print_confirm() {
 
   # Accepts <Enter>, Y or y
   [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+}
+
+print_input() {
+  # Prompt input
+  local message="$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} $@"
+  read -p "$message " -r
+
+  echo "$REPLY"
+}
+
+print_choice() {
+  echo "print choice ..."
 }
 
 print_version() {
@@ -72,7 +84,7 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  ${WHITE}${NO_COLOR}interactive                    ${WHITE}Runs in interactive mode (respects options and flags)${NO_COLOR}
+  ${WHITE}${NO_COLOR}interactive                    ${WHITE}Runs in interactive mode${NO_COLOR}
   s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
   i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
   u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
@@ -97,13 +109,20 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 }
 
 print_system_info() {
-  print_info "${BOLD}Depmanager directory ${NO_COLOR}: ${BLUE}$(get_path dir)${NO_COLOR}"
+  local dir
+  is_set $DEPMANAGER_DIR && dir="from \$DEPMANAGER_DIR" || dir="default"
+  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(get_path dir)${NO_COLOR}" "($dir)")
 
   if is_set $SYSTEM_MANAGER; then
-    local version=$($SYSTEM_MANAGER --version)
-    print_info "${BOLD}Your system's manager${NO_COLOR}: ${BLUE}$SYSTEM_MANAGER${NO_COLOR} ($version)"
+    local levels=("info" "info")
+    local messages=("${dir[@]}")
+    local version=$(${SYSTEM_MANAGER}_version)
+    messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
+
+    table_print "" 3 levels[@] messages[@]
   else
-    print_warning "${BOLD}Your system's package manager is not supported${NO_COLOR}"
+    print_info "${dir[@]}"
+    print_warning "${BOLD}Your system's manager is not supported${NO_COLOR}"
   fi
 }
 
@@ -119,7 +138,7 @@ print_csv_info() {
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   is_bypassed $manager; then messages+=("${BLUE}bypassed${NO_COLOR}")
+    if   is_bypassed $manager; then messages+=("${BLUE}ignored${NO_COLOR}")
     elif detect_path $manager; then messages+=("${GREEN}$(get_path $manager)${NO_COLOR}")
     else                            messages+=("${YELLOW}$(get_path $manager)${NO_COLOR}")
     fi
