@@ -14,6 +14,7 @@ declare -A DEFAULTS
 declare -A PATHS
 declare -A __cache_detect_path
 declare -A __cache_detect_manager
+declare -A __cache_read_csv
 
 DEFAULTS[dir]="$HOME/.config/depmanager"
 for manager in "${MANAGERS[@]}"; do

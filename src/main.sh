@@ -93,7 +93,11 @@ run() {
     [[ $i != 0 ]] && print_separator
     ! detect_manager $manager && print_warning "${BOLD}$manager${NO_COLOR} not found" && continue
 
-    run_${COMMAND} $manager
+    if csv_is_empty $manager; then
+      print_warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
+    else
+      run_${COMMAND} $manager
+    fi
 
     # continue
     # if command_exists ${manager}_${COMMAND}; then
@@ -104,105 +108,11 @@ run() {
   done
 }
 
-run_interactive() {
-  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
-  local length=$(array_length managers[@])
-
-  for i in $(seq 0 $(($length - 1))); do
-    local ok=false
-    local manager="${managers[$i]}"
-    ! detect_manager $manager && continue
-
-    [[ $i != 0 ]] && print_separator
-    print_info "${BOLD}$manager${NO_COLOR}"
-
-    local first=true
-    local path
-    local default_path
-
-    while true; do
-      if is_bypassed $manager; then
-        default_path="${BLUE}false${NO_COLOR}"
-      else
-        resolve_path $manager
-
-        if detect_path $manager false; then
-          ! $first && break
-          default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
-        else
-          default_path="${BLUE}false${NO_COLOR}"
-          print_warning "Not found ${YELLOW}${PATHS[$manager]}${NO_COLOR}"
-        fi
-      fi
-
-      path=$(print_input "CSV ($default_path):")
-      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences $default_path)
-      PATHS[$manager]=$path
-
-      [[ "$path" == false ]] && break
-      first=false
-    done
-  done
-}
-
-run_status() {
-  local manager=$1
-  local file=$(get_path $manager)
-  local title="${BLUE}${BOLD}$manager${NO_COLOR}"
-  local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
-  local levels=()
-  local messages=()
-
-  local i=1
-  while IFS=, read -a line; do
-    local dependency=${line[0]}
-    local installed=false
-    local local_version="NONE"
-    local remote_version=$(${manager}_get_remote_version $dependency)
-    local up_to_date
-
-    ! is_set $remote_version && remote_version="NONE"
-
-    if ${manager}_is_installed $dependency; then
-      installed=true
-      local_version=$(${manager}_get_local_version $dependency)
-      up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
-    fi
-
-    if   ! $installed; then levels+=("error")
-    elif $up_to_date ; then levels+=("success")
-    else                    levels+=("warning")
-    fi
-
-    messages+=("${BOLD}$dependency${NO_COLOR}")
-    messages+=("$local_version")
-    messages+=("$remote_version")
-    i=$(($i + 1))
-  done < $file
-
-  if (( $i > 1 )); then
-    table_print "$title ($(${manager}_version))" headers[@] levels[@] messages[@]
-  else
-    print_warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
-  fi
-}
-
-run_install() {
-  echo INSTALL
-}
-
-run_update() {
-  echo UPDATE
-}
-
 #
 # Main
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  # var=~
-  # realpath -m $var
-  # exit
   parse_args $@
   resolve_dir
   detect_system
@@ -238,6 +148,7 @@ main() {
   else
     if print_pre_run_confirm; then
       print_info Go!
+      print_separator
       run
     else
       print_info Bye!

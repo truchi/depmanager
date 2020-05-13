@@ -58,7 +58,6 @@ detect_path() {
   local file="${PATHS[$manager]}"
 
   # If already found, do not try to find again
-  # TODO parameter for cache?
   if $read_cache && is_set "${__cache_detect_path[$manager]}";then
     "${__cache_detect_path[$manager]}"
     return
@@ -109,6 +108,43 @@ detect_system() {
       return
     fi
   done
+}
+
+#
+# Returns content of file/url ${PATHS[$1]}
+# With cache
+#
+read_csv() {
+  local manager="$1"
+  local file="${PATHS[$manager]}"
+
+  # If already read, return from cache
+  if is_set "${__cache_read_csv[$manager]}";then
+    echo "${__cache_read_csv[$manager]}"
+    return
+  fi
+
+  # Read file/url
+  local csv
+  if string_is_url "$file"; then
+    csv=$(wget "$file")
+  else
+    csv=$(cat "$file")
+  fi
+
+  __cache_read_csv[$manager]="$csv"
+  echo "$csv"
+}
+
+csv_is_empty() {
+  local manager="$1"
+  local i=0
+
+  while IFS=, read -a line; do
+    is_set ${line[0]} && i=$(($i + 1))
+  done < <(read_csv $manager)
+
+  ! (( $i > 0 ))
 }
 
 #

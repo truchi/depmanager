@@ -24,6 +24,10 @@ FILES=(
   utils/functions
   managers/apt
   managers/node
+  commands/interactive
+  commands/status
+  commands/install
+  commands/update
   main
 )
 
