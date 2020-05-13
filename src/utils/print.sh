@@ -155,7 +155,7 @@ print_csv_info() {
 }
 
 print_pre_run_confirm() {
-  ! $SIMULATE && print_info "(Tip: run with --simulate first)"
+  ! $SIMULATE && print_info "${BOLD}${BLUE}Tip${NO_COLOR}: run with --simulate first"
 
   # Ask for confirmation
   $SIMULATE \
