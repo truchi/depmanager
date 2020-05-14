@@ -10,16 +10,19 @@ QUIET=false
 YES=false
 SIMULATE=false
 
-declare -A DEFAULTS
 declare -A PATHS
 declare -A __cache_detect_path
 declare -A __cache_detect_manager
 declare -A __cache_read_csv
 
+declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
 for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
+
+DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+mkdir -p $DEPMANAGER_CACHE_DIR
 
 NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
