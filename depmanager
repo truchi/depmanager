@@ -50,15 +50,27 @@ DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p $DEPMANAGER_CACHE_DIR
 
-NO_COLOR=$(tput sgr0)
-BOLD=$(tput bold)
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
-YELLOW=$(tput setaf 3)
-BLUE=$(tput setaf 4)
-MAGENTA=$(tput setaf 5)
-CYAN=$(tput setaf 6)
-WHITE=$(tput setaf 7)
+if [ -t 1 ]; then
+  NO_COLOR=$(tput sgr0)
+  BOLD=$(tput bold)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAGENTA=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  WHITE=$(tput setaf 7)
+# else
+  # NO_COLOR=''
+  # BOLD=''
+  # RED=''
+  # GREEN=''
+  # YELLOW=''
+  # BLUE=''
+  # MAGENTA=''
+  # CYAN=''
+  # WHITE=''
+fi
 
 ###################################################
 # utils/print
@@ -376,9 +388,9 @@ table_print() {
     total_length=$(($total_length + $max_length))
     column_length[$column_index]=$max_length
   done
-  total_length=$(($total_length - $pad))
 
   $has_title && print_custom "  $(string_center "$title" $total_length)"
+  total_length=$(($total_length - $pad))
 
   if $has_headers; then
     local header_row=""
@@ -752,7 +764,7 @@ status_update_table() {
   local levels=()
   local messages=()
 
-  echo -e $(tput cuu $remove)
+  (( $remove > 0 )) && echo -e $(tput cuu $remove)
 
   local i=1
   while IFS=, read -a line; do
@@ -840,7 +852,11 @@ run_status() {
     i=$(($i + 1))
   done < <(read_csv $manager)
 
-  status_update_table $manager 0
+  local redraw=false
+  [[ -t 1 ]] && redraw=true
+  # echo redraw $redraw
+
+  $redraw && status_update_table $manager 0
   mknod $FIFO p
 
   local j=0
@@ -851,14 +867,13 @@ run_status() {
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    status_update_table $manager $(($i + 3))
+    $redraw && status_update_table $manager $(($i + 3))
 
     j=$(($j + 1))
-
-    if (( $j == $(($i * 2 + 1)) )); then
-      break
-    fi
+    (( $j == $(($i * 2 + 1)) )) && break
   done <$FIFO
+
+  ! $redraw && status_update_table $manager 0
 }
 
 ###################################################

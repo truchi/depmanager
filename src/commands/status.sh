@@ -7,7 +7,7 @@ status_update_table() {
   local levels=()
   local messages=()
 
-  echo -e $(tput cuu $remove)
+  (( $remove > 0 )) && echo -e $(tput cuu $remove)
 
   local i=1
   while IFS=, read -a line; do
@@ -95,7 +95,10 @@ run_status() {
     i=$(($i + 1))
   done < <(read_csv $manager)
 
-  status_update_table $manager 0
+  local redraw=false
+  [ -t 1 ] && redraw=true
+
+  $redraw && status_update_table $manager 0
   mknod $FIFO p
 
   local j=0
@@ -106,13 +109,12 @@ run_status() {
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    status_update_table $manager $(($i + 3))
+    $redraw && status_update_table $manager $(($i + 3))
 
     j=$(($j + 1))
-
-    if (( $j == $(($i * 2 + 1)) )); then
-      break
-    fi
+    (( $j == $(($i * 2 + 1)) )) && break
   done <$FIFO
+
+  ! $redraw && status_update_table $manager 0
 }
 

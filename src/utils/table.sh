@@ -30,9 +30,9 @@ table_print() {
     total_length=$(($total_length + $max_length))
     column_length[$column_index]=$max_length
   done
-  total_length=$(($total_length - $pad))
 
   $has_title && print_custom "  $(string_center "$title" $total_length)"
+  total_length=$(($total_length - $pad))
 
   if $has_headers; then
     local header_row=""
