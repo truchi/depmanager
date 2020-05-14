@@ -22,6 +22,7 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p $DEPMANAGER_CACHE_DIR
 
 NO_COLOR=$(tput sgr0)
