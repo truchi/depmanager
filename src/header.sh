@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Dependencies managment
 # Author: Romain TRUCHI (https://github.com/truchi)

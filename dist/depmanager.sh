@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck source=header.sh
 
 #
 # Parses args, filling the appropriate global variables
@@ -156,4 +155,5 @@ main() {
 
 # Run
 main $@
+
 

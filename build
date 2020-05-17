@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 NO_COLOR=$(tput sgr0)
-# RED=$(tput setaf 1)
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
 # YELLOW=$(tput setaf 3)
 BLUE=$(tput setaf 4)
@@ -39,6 +40,12 @@ function build {
 function resolve_imports() {
   local file="$1"
   local dir
+
+  # Error if file is not found
+  if [[ ! -f "$file" ]]; then
+    echo "${BOLD}${RED}✗${NO_COLOR} ${CYAN}$(realpath "$file") ${RED}not found${NO_COLOR}"
+    exit
+  fi
 
   # Assumes shellcheck source directive paths are relative to current file
   dir=$(dirname "$file")
@@ -96,7 +103,6 @@ function array_includes() {
   false
 }
 
-build "test.sh"
-
-echo "${BOLD}${GREEN}✔✔✔${NO_COLOR} ${GREEN}Build complete${NO_COLOR}"
+build "depmanager.sh"
+echo "${BOLD}${GREEN}Build complete${NO_COLOR}"
 

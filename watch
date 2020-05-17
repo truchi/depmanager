@@ -1,34 +1,51 @@
-#!/usr/bin/zsh
+#!/usr/bin/env bash
 
-SRC='./src'
+SRC=$(realpath './src')
 
 NO_COLOR=$(tput sgr0)
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
+BOLD=$(tput bold)
+# RED=$(tput setaf 1)
+# GREEN=$(tput setaf 2)
 YELLOW=$(tput setaf 3)
 BLUE=$(tput setaf 4)
 MAGENTA=$(tput setaf 5)
 CYAN=$(tput setaf 6)
-WHITE=$(tput setaf 7)
+# WHITE=$(tput setaf 7)
 
-function watch {
+#
+# Watches for changes in $SRC and builds
+#
+function watch() {
   clear
-  ./build
-  echo ${BLUE}Watching ${CYAN}$SRC${NO_COLOR}
-  echo
-  echo ${YELLOW}Program output:${NO_COLOR}
-  $@
+  build_sources "$@"
 
-  while inotifywait -qq -r -e modify $SRC; do
+  while inotifywait -qq -r -e modify "$SRC"; do
     clear
-    echo ${YELLOW}Detected changes ${MAGENTA}$(date)${NO_COLOR}
-    ./build
-    echo ${BLUE}Watching ${CYAN}$SRC${NO_COLOR}
-    echo
-    echo ${YELLOW}Program output:${NO_COLOR}
-    $@
+    echo "${BOLD}${YELLOW}Detected changes${NO_COLOR} ${MAGENTA}$(date)${NO_COLOR}"
+    build_sources "$@"
   done
 }
 
-watch $@
+#
+# Runs ./build
+#
+function build_sources() {
+  ./build
+  echo "${BLUE}Watching ${CYAN}$SRC${NO_COLOR}"
+  execute_program "$@"
+}
+
+#
+# Runs command passed as arguments and prints output
+#
+function execute_program() {
+  if [[ -n "$*" ]]; then
+    echo
+    echo "${BOLD}${YELLOW}~~~~~~~~~ Program output: ~~~~~~~~~${NO_COLOR}"
+    "$@"
+    echo "${BOLD}${YELLOW}~~~~~~~~~ /Program output ~~~~~~~~~${NO_COLOR}"
+  fi
+}
+
+watch "$@"
 
