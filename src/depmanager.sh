@@ -1,4 +1,10 @@
-#!/bin/bash
+# shellcheck shell=bash
+
+# shellcheck source=header.sh
+. ""
+
+# shellcheck source=vars.sh
+. ""
 
 #
 # Parses args, filling the appropriate global variables

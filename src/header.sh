@@ -20,3 +20,4 @@
 #
 # `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
 # Defaults to "$HOME/.config/depmanager"
+

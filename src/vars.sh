@@ -1,4 +1,4 @@
-#!/bin/bash
+# shellcheck shell=bash
 
 SYSTEM_MANAGERS=(apt yum pacman)
 NON_SYSTEM_MANAGERS=(node rust)
@@ -23,7 +23,7 @@ done
 
 DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
-mkdir -p $DEPMANAGER_CACHE_DIR
+mkdir -p "$DEPMANAGER_CACHE_DIR"
 
 if [ -t 1 ]; then
   NO_COLOR=$(tput sgr0)

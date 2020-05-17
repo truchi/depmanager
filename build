@@ -11,31 +11,36 @@ CYAN=$(tput setaf 6)
 # WHITE=$(tput setaf 7)
 
 #
-# Builds $1 from ./src in ./dist
+# Builds $1 to $2
 #
 function build {
-  local file="$1"
+  local src
+  local dest
+  src=$(realpath "$1")
+  dest=$(realpath "$2")
 
-  echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building ${CYAN}$file ${BLUE}from ${CYAN}$(realpath ./src)${NO_COLOR}"
+  echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building ${CYAN}$src${NO_COLOR}"
 
   # Get all the files to import
-  local paths
-  resolve_imports "./src/$file"
+  declare -a all_imports
+  declare -A file_imports
+  resolve_imports "$src"
 
-  # Concat all the files
+  # Concat all the files and clean
   local output
-  output=$(concat_files paths[@])
+  output=$(concat_files "$src")
+  output=$(clean_directives "$output")
 
-  # Write in dist
-  mkdir -p dist
-  echo -e "$output" > "./dist/$file"
+  # Write
+  mkdir -p "$(dirname "$dest")"
+  echo -e "$output" > "$dest"
 
-  echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built    ${CYAN}$file ${BLUE}in   ${CYAN}$(realpath ./dist)${NO_COLOR}"
+  echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built    ${CYAN}$dest${NO_COLOR}"
 }
 
 #
 # Recursively traverses files looking for '# shellcheck source=somefile'
-# Populates `paths` array
+# Populates `all_imports` array
 #
 function resolve_imports() {
   local file="$1"
@@ -43,7 +48,7 @@ function resolve_imports() {
 
   # Error if file is not found
   if [[ ! -f "$file" ]]; then
-    echo "${BOLD}${RED}✗${NO_COLOR} ${CYAN}$(realpath "$file") ${RED}not found${NO_COLOR}"
+    echo "${BOLD}${RED}✗${NO_COLOR} ${CYAN}$file ${RED}not found${NO_COLOR}"
     exit
   fi
 
@@ -51,7 +56,8 @@ function resolve_imports() {
   dir=$(dirname "$file")
 
   # Mark $file as imported 
-  paths+=("$file")
+  all_imports+=("$file")
+  file_imports[$file]=""
 
   # Extract files to import
   # shellcheck disable=SC2207
@@ -60,30 +66,44 @@ function resolve_imports() {
   # Resolve imports in imported files
   for import in "${imports[@]}"; do
     # Beware of the infinite!
-    ! array_includes "$dir/$import" paths[@] && resolve_imports "$dir/$import"
+    if ! array_includes "$dir/$import" all_imports[@]; then
+      file_imports[$file]+=" $dir/$import"
+      resolve_imports "$dir/$import"
+    fi
   done
 }
 
 #
-# Concats content from $1 files
-# Removes some shellcheck directives
+# Recursively concat files
 #
 function concat_files() {
-  local files=("${!1}")
+  local file="$1"
   local concatenated=""
 
-  # Concat from $files in reverse
-  for i in $(seq $(("${#files[@]}" - 1)) -1 0); do
-    concatenated+="$(cat "${files[$i]}")\n\n"
+  # Concat imports
+  for import in ${file_imports["$file"]}; do
+    concatenated+="$(concat_files "$import")"
   done
 
-  # Remove some useless directives
-  concatenated=$(grep -v '# shellcheck shell=' <<< "$concatenated")
-  concatenated=$(grep -v '# shellcheck source=' <<< "$concatenated")
-  concatenated=$(grep -v '^. ""$' <<< "$concatenated")
+  # Concat file
+  concatenated+="$(cat "$file")\n"
 
   # Return
   echo "$concatenated"
+}
+
+#
+# Removes some shellcheck directives
+#
+function clean_directives() {
+  local string="$1"
+
+  # Remove some useless directives
+  string=$(perl -pe 's/# shellcheck (shell|source)=\S*\n+//gm' <<< "$string")
+  string=$(perl -pe 's/. ""\n+//gm' <<< "$string")
+
+  # Return
+  echo "$string"
 }
 
 #
@@ -103,6 +123,6 @@ function array_includes() {
   false
 }
 
-build "depmanager.sh"
+build src/depmanager.sh dist/depmanager.sh
 echo "${BOLD}${GREEN}Build complete${NO_COLOR}"
 

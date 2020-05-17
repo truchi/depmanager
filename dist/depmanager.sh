@@ -1,4 +1,64 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Dependencies managment
+# Author: Romain TRUCHI (https://github.com/truchi)
+#
+# # depmanager
+#
+# Checks, diffs, installs or updates your dependencies.
+# System, NodeJS, Rust.
+#
+# # Dependencies
+#
+# bash, wget (remote CSV only)
+#
+# # Usage
+#
+# $ depmanager check --directory ~/my/dir --node ~/my/node.csv
+#
+# # Configuration
+#
+# `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
+# Defaults to "$HOME/.config/depmanager"
+
+SYSTEM_MANAGERS=(apt yum pacman)
+NON_SYSTEM_MANAGERS=(node rust)
+MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
+
+SYSTEM_MANAGER=
+COMMAND=
+QUIET=false
+YES=false
+SIMULATE=false
+
+declare -A PATHS
+declare -A __cache_detect_path
+declare -A __cache_detect_manager
+declare -A __cache_read_csv
+
+declare -A DEFAULTS
+DEFAULTS[dir]="$HOME/.config/depmanager"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULTS[$manager]="$manager.csv"
+done
+
+DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_CACHE_DIR"
+
+if [ -t 1 ]; then
+  NO_COLOR=$(tput sgr0)
+  BOLD=$(tput bold)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAGENTA=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  WHITE=$(tput setaf 7)
+fi
+
+
 
 #
 # Parses args, filling the appropriate global variables
@@ -155,5 +215,4 @@ main() {
 
 # Run
 main $@
-
 
