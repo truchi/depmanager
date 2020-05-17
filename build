@@ -1,70 +1,102 @@
-#!/usr/bin/zsh
+#!/usr/bin/env bash
 
 NO_COLOR=$(tput sgr0)
-RED=$(tput setaf 1)
+# RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
-YELLOW=$(tput setaf 3)
+# YELLOW=$(tput setaf 3)
 BLUE=$(tput setaf 4)
-MAGENTA=$(tput setaf 5)
+# MAGENTA=$(tput setaf 5)
 CYAN=$(tput setaf 6)
-WHITE=$(tput setaf 7)
+# WHITE=$(tput setaf 7)
 
-SRC='./src'
-OUT='./depmanager'
-
-SEPARATOR="###################################################"
-FILES=(
-  header
-  vars
-  utils/print
-  utils/helpers
-  utils/string
-  utils/array
-  utils/table
-  utils/functions
-  managers/apt
-  managers/node
-  commands/interactive
-  commands/status
-  commands/install
-  commands/update
-  main
-)
-
+#
+# Builds $1 from ./src in ./dist
+#
 function build {
-  local out=""
-  local content=""
-  local i=0
+  local file="$1"
 
-  echo ${BLUE}Building ${CYAN}$OUT ${BLUE}from ${CYAN}$SRC${NO_COLOR}
+  echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building ${CYAN}$file ${BLUE}from ${CYAN}$(realpath ./src)${NO_COLOR}"
 
-  for file in "${FILES[@]}"; do
-    # Read file
-    content=$(cat $SRC/$file.sh)
+  # Get all the files to import
+  local paths
+  resolve_imports "./src/$file"
 
-    # Remove 1st line (shebang) of non-first files
-    if [[ "$i" != 0 ]]; then
-      content=$(echo $content | sed 1d)
-    fi
+  # Concat all the files
+  local output
+  output=$(concat_files paths[@])
 
-    # Remove leading newlines
-    content=$(echo $content | sed -e '/./,$!d')
+  # Write in dist
+  mkdir -p dist
+  echo -e "$output" > "./dist/$file"
 
-
-    if [[ "$i" != 0 ]]; then
-      content="$SEPARATOR\n# ${file}\n$SEPARATOR\n\n$content"
-    fi
-
-    # Append to output
-    out="$out$content\n\n"
-
-    i=$((i+1))
-  done
-
-  echo $out > $OUT
-
-  echo ${GREEN}Build complete${NO_COLOR}
+  echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built    ${CYAN}$file ${BLUE}in   ${CYAN}$(realpath ./dist)${NO_COLOR}"
 }
 
-build
+#
+# Recursively traverses files looking for '# shellcheck source=somefile'
+# Populates `paths` array
+#
+function resolve_imports() {
+  local file="$1"
+  local dir
+
+  # Assumes shellcheck source directive paths are relative to current file
+  dir=$(dirname "$file")
+
+  # Mark $file as imported 
+  paths+=("$file")
+
+  # Extract files to import
+  # shellcheck disable=SC2207
+  imports=($(grep '# shellcheck source=' "$file" | sed 's/# shellcheck source=\(.*\)/\1/'))
+
+  # Resolve imports in imported files
+  for import in "${imports[@]}"; do
+    # Beware of the infinite!
+    ! array_includes "$dir/$import" paths[@] && resolve_imports "$dir/$import"
+  done
+}
+
+#
+# Concats content from $1 files
+# Removes some shellcheck directives
+#
+function concat_files() {
+  local files=("${!1}")
+  local concatenated=""
+
+  # Concat from $files in reverse
+  for i in $(seq $(("${#files[@]}" - 1)) -1 0); do
+    concatenated+="$(cat "${files[$i]}")\n\n"
+  done
+
+  # Remove some useless directives
+  concatenated=$(grep -v '# shellcheck shell=' <<< "$concatenated")
+  concatenated=$(grep -v '# shellcheck source=' <<< "$concatenated")
+  concatenated=$(grep -v '^. ""$' <<< "$concatenated")
+
+  # Return
+  echo "$concatenated"
+}
+
+#
+# Returns true if $1 is found in $2, false otherwise
+#
+function array_includes() {
+  local needle="$1"
+  local array=("${!2}")
+
+  for item in "${array[@]}"; do
+    if [[ "$item" == "$needle" ]]; then
+      true
+      return
+    fi
+  done
+
+  false
+}
+
+build "test.sh"
+
+echo "${BOLD}${GREEN}✔✔✔${NO_COLOR} ${GREEN}Build complete${NO_COLOR}"
 

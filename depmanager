@@ -60,16 +60,6 @@ if [ -t 1 ]; then
   MAGENTA=$(tput setaf 5)
   CYAN=$(tput setaf 6)
   WHITE=$(tput setaf 7)
-# else
-  # NO_COLOR=''
-  # BOLD=''
-  # RED=''
-  # GREEN=''
-  # YELLOW=''
-  # BLUE=''
-  # MAGENTA=''
-  # CYAN=''
-  # WHITE=''
 fi
 
 ###################################################
@@ -853,8 +843,7 @@ run_status() {
   done < <(read_csv $manager)
 
   local redraw=false
-  [[ -t 1 ]] && redraw=true
-  # echo redraw $redraw
+  [ -t 1 ] && redraw=true
 
   $redraw && status_update_table $manager 0
   mknod $FIFO p
@@ -924,6 +913,8 @@ run_update() {
 # main
 ###################################################
 
+# shellcheck source=header.sh
+
 #
 # Parses args, filling the appropriate global variables
 #
@@ -955,7 +946,7 @@ parse_args() {
     u|update)
       COMMAND="update";;
     *)
-      print_error Unknown command: $1
+      print_error "Unknown command: $1"
       exit
   esac
 
@@ -963,15 +954,15 @@ parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        PATHS[apt]="$3"; shift; shift;;
+        PATHS["apt"]="$3"; shift; shift;;
       -y|--yum)
-        PATHS[yum]="$3"; shift; shift;;
+        PATHS["yum"]="$3"; shift; shift;;
       -p|--pacman)
-        PATHS[pacman]="$3"; shift; shift;;
+        PATHS["pacman"]="$3"; shift; shift;;
       -n|--node)
-        PATHS[node]="$3"; shift; shift;;
+        PATHS["node"]="$3"; shift; shift;;
       -r|--rust)
-        PATHS[rust]="$3"; shift; shift;;
+        PATHS["rust"]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -1022,13 +1013,6 @@ run() {
     else
       run_${COMMAND} $manager
     fi
-
-    # continue
-    # if command_exists ${manager}_${COMMAND}; then
-      # ${manager}_${COMMAND}
-    # else
-      # print_warning "Oops! $COMMAND is not implemented for ${manager}, ..."
-    # fi
   done
 }
 

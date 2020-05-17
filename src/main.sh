@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=header.sh
 
 #
 # Parses args, filling the appropriate global variables
@@ -31,7 +32,7 @@ parse_args() {
     u|update)
       COMMAND="update";;
     *)
-      print_error Unknown command: $1
+      print_error "Unknown command: $1"
       exit
   esac
 
@@ -39,15 +40,15 @@ parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        PATHS[apt]="$3"; shift; shift;;
+        PATHS["apt"]="$3"; shift; shift;;
       -y|--yum)
-        PATHS[yum]="$3"; shift; shift;;
+        PATHS["yum"]="$3"; shift; shift;;
       -p|--pacman)
-        PATHS[pacman]="$3"; shift; shift;;
+        PATHS["pacman"]="$3"; shift; shift;;
       -n|--node)
-        PATHS[node]="$3"; shift; shift;;
+        PATHS["node"]="$3"; shift; shift;;
       -r|--rust)
-        PATHS[rust]="$3"; shift; shift;;
+        PATHS["rust"]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -98,13 +99,6 @@ run() {
     else
       run_${COMMAND} $manager
     fi
-
-    # continue
-    # if command_exists ${manager}_${COMMAND}; then
-      # ${manager}_${COMMAND}
-    # else
-      # print_warning "Oops! $COMMAND is not implemented for ${manager}, ..."
-    # fi
   done
 }
 
