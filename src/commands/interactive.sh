@@ -19,7 +19,10 @@ command.interactive() {
     local color="$BLUE"
 
     while true; do
-      if ! core.manager.is_bypassed "$manager"; then
+      if core.manager.is_bypassed "$manager"; then
+        default_path=false
+        color="$BLUE"
+      else
         core.csv.resolve "$manager"
 
         if core.csv.exists "$manager" false; then
@@ -27,7 +30,9 @@ command.interactive() {
           default_path=$(core.csv.path "$manager")
           color="$GREEN"
         else
-          print.warning "Not found ${YELLOW}$path${NO_COLOR}"
+          print.warning "${YELLOW}$path${NO_COLOR} not found"
+          default_path=false
+          color="$BLUE"
         fi
       fi
 

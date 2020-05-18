@@ -13,7 +13,11 @@
 . ""
 # shellcheck source=utils/table.sh
 . ""
-# shellcheck source=core.sh
+# shellcheck source=core/dir.sh
+. ""
+# shellcheck source=core/csv.sh
+. ""
+# shellcheck source=core/manager.sh
 . ""
 # shellcheck source=managers/apt.sh
 . ""

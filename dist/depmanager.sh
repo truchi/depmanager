@@ -342,7 +342,7 @@ print.system_info() {
   fi
 }
 
-print.csv_info() {
+print.csvs_info() {
   local i=0
   local levels=()
   local messages=()
@@ -477,6 +477,43 @@ table.get_column() {
   done
 }
 
+SYSTEM_MANAGERS=(apt yum pacman)
+NON_SYSTEM_MANAGERS=(node rust)
+MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
+
+SYSTEM_MANAGER=
+COMMAND=
+QUIET=false
+YES=false
+SIMULATE=false
+
+declare -A CSVS
+declare -A __cache_core_manager_exists
+declare -A __cache_core_csv_exists
+declare -A __cache_core_csv_get
+
+declare -A DEFAULTS
+DEFAULTS[dir]="$HOME/.config/depmanager"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULTS[$manager]="$manager.csv"
+done
+
+DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_CACHE_DIR"
+
+if [ -t 1 ]; then
+  NO_COLOR=$(tput sgr0)
+  BOLD=$(tput bold)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAGENTA=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  WHITE=$(tput setaf 7)
+fi
+
 #
 # Sets `DIR` according to (in this precedence order):
 # - env variable (relative to home)
@@ -501,18 +538,25 @@ core.dir.resolve() {
 }
 
 #
-# Sets `CSVS[$1]` according to (in this precedence order):
+# Returns CSV path for manager $1
+#
+core.csv.path() {
+  echo "${CSVS[$1]}"
+}
+
+#
+# Sets $1 manager's CSV according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
-# - default variable (relative to `DIR`)
+# - default variable (relative to `CSVS[dir]`, see core.dir.resolve)
 #
 core.csv.resolve() {
   local manager="$1"
-  local file=""
+  local file
+  file=$(core.csv.path "$manager")
 
   # If file is given in args
-  if helpers.is_set "${CSVS[$manager]}"; then
-    # Use file arg
-    file="${CSVS[$manager]}"
+  if helpers.is_set "$file"; then
+    # Expand ~
     file="${file/#\~/$HOME}"
 
     # Relative to current working dir
@@ -526,13 +570,14 @@ core.csv.resolve() {
 }
 
 #
-# Returns true if ${CSVS[$1]} exists (file/url), false otherwise
+# Returns true if $1 manager's CSV exists (file/url), false otherwise
 # With cache
 #
 core.csv.exists() {
   local manager="$1"
   local read_cache="$2"
-  local file="${CSVS[$manager]}"
+  local file
+  file=$(core.csv.path "$manager")
 
   # If already found, do not try to find again
   if $read_cache && helpers.is_set "${__cache_core_csv_exists[$manager]}";then
@@ -551,51 +596,13 @@ core.csv.exists() {
 }
 
 #
-# Returns true if the manager is found on the system, false otherwise
-# With cache (system managers only)
-#
-core.manager.exists() {
-  local manager="$1"
-
-  # If already detected, do not try to detect again
-  if helpers.is_set "${__cache_core_manager_exists[$manager]}"; then
-    "${__cache_core_manager_exists[$manager]}"
-    return
-  fi
-
-  # Detection
-  if helpers.command_exists "${manager}_detect" && "${manager}_detect"; then
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=true
-    true
-  else
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=false
-    false
-  fi
-}
-
-#
-# Sets `SYSTEM_MANAGER` to the first found system manager
-#
-core.manager.system() {
-  # Already detected?
-  helpers.is_set "$SYSTEM_MANAGER" && return
-
-  # Try all system managers
-  for manager in "${SYSTEM_MANAGERS[@]}"; do
-    if core.manager.exists "$manager"; then
-      SYSTEM_MANAGER="$manager"
-      return
-    fi
-  done
-}
-
-#
-# Returns content of file/url ${CSVS[$1]}
+# Returns content of $1 manager's CSV
 # With cache
 #
 core.csv.get() {
   local manager="$1"
-  local file="${CSVS[$manager]}"
+  local file
+  file=$(core.csv.path "$manager")
 
   # If already read, return from cache
   if helpers.is_set "${__cache_core_csv_get[$manager]}";then
@@ -632,17 +639,42 @@ core.csv.is_empty() {
 }
 
 #
-# Returns true if manager $1 is by-passed
+# Sets `SYSTEM_MANAGER` to the first found system manager
 #
-core.manager.is_bypassed() {
-  [[ "${CSVS[$1]}" == false ]]
+core.manager.system() {
+  # Already detected?
+  helpers.is_set "$SYSTEM_MANAGER" && return
+
+  # Try all system managers
+  for manager in "${SYSTEM_MANAGERS[@]}"; do
+    if core.manager.exists "$manager"; then
+      SYSTEM_MANAGER="$manager"
+      return
+    fi
+  done
 }
 
 #
-# Returns CSV path for manager $1
+# Returns true if the manager is found on the system, false otherwise
+# With cache (system managers only)
 #
-core.csv.path() {
-  echo "${CSVS[$1]}"
+core.manager.exists() {
+  local manager="$1"
+
+  # If already detected, do not try to detect again
+  if helpers.is_set "${__cache_core_manager_exists[$manager]}"; then
+    "${__cache_core_manager_exists[$manager]}"
+    return
+  fi
+
+  # Detection
+  if helpers.command_exists "${manager}_detect" && "${manager}_detect"; then
+    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=true
+    true
+  else
+    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=false
+    false
+  fi
 }
 
 #
@@ -650,6 +682,13 @@ core.csv.path() {
 #
 core.manager.is_system() {
   array.includes "$1" SYSTEM_MANAGERS[@]
+}
+
+#
+# Returns true if manager $1 is by-passed
+#
+core.manager.is_bypassed() {
+  [[ "${CSVS[$1]}" == false ]]
 }
 
 #
@@ -750,7 +789,10 @@ command.interactive() {
     local color="$BLUE"
 
     while true; do
-      if ! core.manager.is_bypassed "$manager"; then
+      if core.manager.is_bypassed "$manager"; then
+        default_path=false
+        color="$BLUE"
+      else
         core.csv.resolve "$manager"
 
         if core.csv.exists "$manager" false; then
@@ -758,7 +800,9 @@ command.interactive() {
           default_path=$(core.csv.path "$manager")
           color="$GREEN"
         else
-          print.warning "Not found ${YELLOW}$path${NO_COLOR}"
+          print.warning "${YELLOW}$path${NO_COLOR} not found"
+          default_path=false
+          color="$BLUE"
         fi
       fi
 
@@ -1087,7 +1131,7 @@ main() {
     print.separator
   fi
 
-  print.csv_info
+  print.csvs_info
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
