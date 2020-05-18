@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-status_update_table() {
+command.status.update_table() {
   local manager=$1
   local remove=$2
   local headers
@@ -41,7 +41,7 @@ status_update_table() {
     fi
 
     i=$((i + 1))
-  done < <(core.read_csv "$manager")
+  done < <(core.csv.get "$manager")
 
   local manager_version="${statuses[${manager}_version]}"
   local title
@@ -55,7 +55,7 @@ status_update_table() {
   table.print "$title" headers[@] levels[@] messages[@]
 }
 
-status_get_manager_version() {
+command.status.get_manager_version() {
   local manager=$1
 
   local version
@@ -65,7 +65,7 @@ status_get_manager_version() {
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-status_get_local_version() {
+command.status.get_local_version() {
   local dependency=$1
 
   local version="NONE"
@@ -75,7 +75,7 @@ status_get_local_version() {
   echo "${dependency}_local_version,$version" >"$FIFO"
 }
 
-status_get_remote_version() {
+command.status.get_remote_version() {
   local dependency=$1
 
   local version
@@ -86,29 +86,29 @@ status_get_remote_version() {
   echo "${dependency}_remote_version,$version" >"$FIFO"
 }
 
-run_status() {
+command.status() {
   local manager=$1
   declare -A statuses
 
   [ -p "$FIFO" ] && rm "$FIFO"
 
-  status_get_manager_version "$manager" &
+  command.status.get_manager_version "$manager" &
 
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
     ! helpers.is_set "$dependency" && continue
 
-    status_get_local_version  "$dependency" &
-    status_get_remote_version "$dependency" &
+    command.status.get_local_version  "$dependency" &
+    command.status.get_remote_version "$dependency" &
 
     i=$((i + 1))
-  done < <(core.read_csv "$manager")
+  done < <(core.csv.get "$manager")
 
   local redraw=false
   [ -t 1 ] && redraw=true
 
-  "$redraw" && status_update_table "$manager" 0
+  "$redraw" && command.status.update_table "$manager" 0
   mknod "$FIFO" p
 
   local j=0
@@ -119,12 +119,12 @@ run_status() {
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    "$redraw" && status_update_table "$manager" $((i + 3))
+    "$redraw" && command.status.update_table "$manager" $((i + 3))
 
     j=$((j + 1))
     (( j == $((i * 2 + 1)) )) && break
   done <"$FIFO"
 
-  ! "$redraw" && status_update_table "$manager" 0
+  ! "$redraw" && command.status.update_table "$manager" 0
 }
 

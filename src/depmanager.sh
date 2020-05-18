@@ -67,15 +67,15 @@ main.parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        PATHS["apt"]="$3"; shift; shift;;
+        CSVS["apt"]="$3"; shift; shift;;
       -y|--yum)
-        PATHS["yum"]="$3"; shift; shift;;
+        CSVS["yum"]="$3"; shift; shift;;
       -p|--pacman)
-        PATHS["pacman"]="$3"; shift; shift;;
+        CSVS["pacman"]="$3"; shift; shift;;
       -n|--node)
-        PATHS["node"]="$3"; shift; shift;;
+        CSVS["node"]="$3"; shift; shift;;
       -r|--rust)
-        PATHS["rust"]="$3"; shift; shift;;
+        CSVS["rust"]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -110,25 +110,38 @@ main.parse_args() {
   done
 }
 
-run() {
+#
+# Runs $COMMAND for each managers
+#
+main.run() {
+  # User's system managers only and other managers
   declare -a managers
-  local length
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+
+  local length
   length=$(array.length managers[@])
 
+  # For each managers
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
-    core.is_bypassed   "$manager"    && continue
-    ! core.detect_path "$manager"    && continue
-
+    # Pass if is bypassed or CSV not found
+    core.manager.is_bypassed "$manager" && continue
+    core.csv.exists          "$manager" || continue
     [[ $i != 0 ]] && print.separator
-    ! core.detect_manager "$manager" && print.warning "${BOLD}$manager${NO_COLOR} not found" && continue
 
-    if core.csv_is_empty "$manager"; then
+    # Pass with warning if manager is not found
+    if ! core.manager.exists "$manager"; then
+      print.warning "${BOLD}$manager${NO_COLOR} not found"
+      continue
+    fi
+
+    # Run command for manager if CSV contains data,
+    # or print warning
+    if core.csv.is_empty "$manager"; then
       print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
     else
-      run_${COMMAND} "$manager"
+      command.${COMMAND} "$manager"
     fi
   done
 }
@@ -139,8 +152,8 @@ run() {
 #
 main() {
   main.parse_args "$@"
-  core.resolve_dir
-  core.detect_system
+  core.dir.resolve
+  core.manager.system
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
@@ -151,30 +164,30 @@ main() {
   print.separator
 
   for manager in "${MANAGERS[@]}"; do
-    core.is_bypassed "$manager" && continue
+    core.manager.is_bypassed "$manager" && continue
 
-    core.resolve_path "$manager"
-    core.detect_path "$manager"
+    core.csv.resolve "$manager"
+    core.csv.exists  "$manager"
   done
 
   if [[ "$COMMAND" == "interactive" ]]; then
-    run_interactive
+    command.interactive
     print.separator
   fi
 
-  print.csv_info
+  print.csvs_info
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
     local old_quiet=$QUIET
     QUIET=false
-    run
+    main.run
     QUIET=$old_quiet
   else
     if print.pre_run_confirm; then
       print.info Go!
       print.separator
-      run
+      main.run
     else
       print.info Bye!
       exit

@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 
-run_install() {
+command.install() {
   local manager=$1
   local file
-  file=$(core.get_path "$manager")
+  file=$(core.csv.path "$manager")
 
   local i=1
   while IFS=, read -ra line; do

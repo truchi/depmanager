@@ -10,10 +10,10 @@ QUIET=false
 YES=false
 SIMULATE=false
 
-declare -A PATHS
-declare -A __cache_detect_path
-declare -A __cache_detect_manager
-declare -A __cache_read_csv
+declare -A CSVS
+declare -A __cache_core_manager_exists
+declare -A __cache_core_csv_exists
+declare -A __cache_core_csv_get
 
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"

@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-run_interactive() {
+command.interactive() {
   local managers
   local length
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
@@ -8,33 +8,32 @@ run_interactive() {
 
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
-    ! core.detect_manager "$manager" && continue
+    core.manager.exists "$manager" || continue
 
     [[ $i != 0 ]] && print.separator
     print.info "${BOLD}$manager${NO_COLOR}"
 
     local first=true
     local path
-    local default_path
+    local default_path=false
+    local color="$BLUE"
 
     while true; do
-      if core.is_bypassed "$manager"; then
-        default_path="${BLUE}false${NO_COLOR}"
-      else
-        core.resolve_path "$manager"
+      if ! core.manager.is_bypassed "$manager"; then
+        core.csv.resolve "$manager"
 
-        if core.detect_path "$manager" false; then
+        if core.csv.exists "$manager" false; then
           ! $first && break
-          default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
+          default_path=$(core.csv.path "$manager")
+          color="$GREEN"
         else
-          default_path="${BLUE}false${NO_COLOR}"
-          print.warning "Not found ${YELLOW}${PATHS[$manager]}${NO_COLOR}"
+          print.warning "Not found ${YELLOW}$path${NO_COLOR}"
         fi
       fi
 
-      path=$(print.input "CSV ($default_path):")
-      [[ "$path" =~ ^$ ]] && path=$(string.strip_sequences "$default_path")
-      PATHS[$manager]=$path
+      path=$(print.input "CSV (${color}$default_path${NO_COLOR}):")
+      [[ "$path" =~ ^$ ]] && path="$default_path"
+      CSVS[$manager]=$path
 
       [[ "$path" == false ]] && break
       first=false

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
 
-run_update() {
+command.update() {
   echo UPDATE
 }

@@ -110,7 +110,7 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 print.system_info() {
   local dir
   helpers.is_set "$DEPMANAGER_DIR" && dir="\$DEPMANAGER_DIR" || dir="default"
-  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(core.get_path dir)${NO_COLOR}" "($dir)")
+  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(core.csv.path dir)${NO_COLOR}" "($dir)")
 
   if helpers.is_set "$SYSTEM_MANAGER"; then
     local version
@@ -126,25 +126,25 @@ print.system_info() {
   fi
 }
 
-print.csv_info() {
+print.csvs_info() {
   local i=0
   local levels=()
   local messages=()
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
-    if core.is_system_manager "$manager"; then
-      ! core.detect_manager "$manager" && continue
+    if core.manager.is_system "$manager"; then
+      core.manager.exists "$manager" || continue
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.detect_path "$manager"; then messages+=("${GREEN}$(core.get_path  "$manager")${NO_COLOR}")
-    else                                   messages+=("${YELLOW}$(core.get_path "$manager")${NO_COLOR}")
+    if   core.manager.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
+    elif core.csv.exists          "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
+    else                                           messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
     fi
 
-    if   core.is_bypassed "$manager"; then  levels+=("info")
-    elif core.detect_path "$manager"; then  levels+=("success")
-    else                                    levels+=("warning")
+    if   core.manager.is_bypassed "$manager"; then  levels+=("info")
+    elif core.csv.exists          "$manager"; then  levels+=("success")
+    else                                            levels+=("warning")
     fi
 
     i=$((i + 1))

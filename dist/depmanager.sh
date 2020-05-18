@@ -31,10 +31,10 @@ QUIET=false
 YES=false
 SIMULATE=false
 
-declare -A PATHS
-declare -A __cache_detect_path
-declare -A __cache_detect_manager
-declare -A __cache_read_csv
+declare -A CSVS
+declare -A __cache_core_manager_exists
+declare -A __cache_core_csv_exists
+declare -A __cache_core_csv_get
 
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
@@ -326,7 +326,7 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 print.system_info() {
   local dir
   helpers.is_set "$DEPMANAGER_DIR" && dir="\$DEPMANAGER_DIR" || dir="default"
-  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(core.get_path dir)${NO_COLOR}" "($dir)")
+  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(core.csv.path dir)${NO_COLOR}" "($dir)")
 
   if helpers.is_set "$SYSTEM_MANAGER"; then
     local version
@@ -348,19 +348,19 @@ print.csv_info() {
   local messages=()
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
-    if core.is_system_manager "$manager"; then
-      ! core.detect_manager "$manager" && continue
+    if core.manager.is_system "$manager"; then
+      core.manager.exists "$manager" || continue
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.detect_path "$manager"; then messages+=("${GREEN}$(core.get_path  "$manager")${NO_COLOR}")
-    else                                   messages+=("${YELLOW}$(core.get_path "$manager")${NO_COLOR}")
+    if   core.manager.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
+    elif core.csv.exists          "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
+    else                                           messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
     fi
 
-    if   core.is_bypassed "$manager"; then  levels+=("info")
-    elif core.detect_path "$manager"; then  levels+=("success")
-    else                                    levels+=("warning")
+    if   core.manager.is_bypassed "$manager"; then  levels+=("info")
+    elif core.csv.exists          "$manager"; then  levels+=("success")
+    else                                            levels+=("warning")
     fi
 
     i=$((i + 1))
@@ -482,7 +482,7 @@ table.get_column() {
 # - env variable (relative to home)
 # - default path
 #
-core.resolve_dir() {
+core.dir.resolve() {
   local dir=""
 
   # If env variable is defined
@@ -497,55 +497,55 @@ core.resolve_dir() {
     dir="${DEFAULTS[dir]}"
   fi
 
-  PATHS[dir]="$dir"
+  CSVS[dir]="$dir"
 }
 
 #
-# Sets `PATHS[$1]` according to (in this precedence order):
+# Sets `CSVS[$1]` according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
 # - default variable (relative to `DIR`)
 #
-core.resolve_path() {
+core.csv.resolve() {
   local manager="$1"
   local file=""
 
   # If file is given in args
-  if helpers.is_set "${PATHS[$manager]}"; then
+  if helpers.is_set "${CSVS[$manager]}"; then
     # Use file arg
-    file="${PATHS[$manager]}"
+    file="${CSVS[$manager]}"
     file="${file/#\~/$HOME}"
 
     # Relative to current working dir
     ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
   else
-    # Use default file, relative to PATHS[dir]
-    file="${PATHS[dir]}/${DEFAULTS[$manager]}"
+    # Use default file, relative to CSVS[dir]
+    file="${CSVS[dir]}/${DEFAULTS[$manager]}"
   fi
 
-  PATHS[$manager]="$file"
+  CSVS[$manager]="$file"
 }
 
 #
-# Returns true if ${PATHS[$1]} exists (file/url), false otherwise
+# Returns true if ${CSVS[$1]} exists (file/url), false otherwise
 # With cache
 #
-core.detect_path() {
+core.csv.exists() {
   local manager="$1"
   local read_cache="$2"
-  local file="${PATHS[$manager]}"
+  local file="${CSVS[$manager]}"
 
   # If already found, do not try to find again
-  if $read_cache && helpers.is_set "${__cache_detect_path[$manager]}";then
-    "${__cache_detect_path[$manager]}"
+  if $read_cache && helpers.is_set "${__cache_core_csv_exists[$manager]}";then
+    "${__cache_core_csv_exists[$manager]}"
     return
   fi
 
   # Check for existence of file/url
   if (string.is_url "$file" && helpers.url_exists "$file") || helpers.file_exists "$file"; then
-    __cache_detect_path[$manager]=true
+    __cache_core_csv_exists[$manager]=true
     true
   else
-    __cache_detect_path[$manager]=false
+    __cache_core_csv_exists[$manager]=false
     false
   fi
 }
@@ -554,33 +554,35 @@ core.detect_path() {
 # Returns true if the manager is found on the system, false otherwise
 # With cache (system managers only)
 #
-core.detect_manager() {
+core.manager.exists() {
   local manager="$1"
 
   # If already detected, do not try to detect again
-  if helpers.is_set "${__cache_detect_manager[$manager]}"; then
-    "${__cache_detect_manager[$manager]}"
+  if helpers.is_set "${__cache_core_manager_exists[$manager]}"; then
+    "${__cache_core_manager_exists[$manager]}"
     return
   fi
 
   # Detection
   if helpers.command_exists "${manager}_detect" && "${manager}_detect"; then
-    core.is_system_manager "$manager" && __cache_detect_manager[$manager]=true
+    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=true
     true
   else
-    core.is_system_manager "$manager" && __cache_detect_manager[$manager]=false
+    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=false
     false
   fi
 }
 
 #
-# Sets `SYSTEM_MANAGER` to the first system manager detected
+# Sets `SYSTEM_MANAGER` to the first found system manager
 #
-core.detect_system() {
+core.manager.system() {
+  # Already detected?
   helpers.is_set "$SYSTEM_MANAGER" && return
 
+  # Try all system managers
   for manager in "${SYSTEM_MANAGERS[@]}"; do
-    if core.detect_manager "$manager"; then
+    if core.manager.exists "$manager"; then
       SYSTEM_MANAGER="$manager"
       return
     fi
@@ -588,16 +590,16 @@ core.detect_system() {
 }
 
 #
-# Returns content of file/url ${PATHS[$1]}
+# Returns content of file/url ${CSVS[$1]}
 # With cache
 #
-core.read_csv() {
+core.csv.get() {
   local manager="$1"
-  local file="${PATHS[$manager]}"
+  local file="${CSVS[$manager]}"
 
   # If already read, return from cache
-  if helpers.is_set "${__cache_read_csv[$manager]}";then
-    echo "${__cache_read_csv[$manager]}"
+  if helpers.is_set "${__cache_core_csv_get[$manager]}";then
+    echo "${__cache_core_csv_get[$manager]}"
     return
   fi
 
@@ -609,39 +611,44 @@ core.read_csv() {
     csv=$(cat "$file")
   fi
 
-  __cache_read_csv[$manager]="$csv"
+  __cache_core_csv_get[$manager]="$csv"
   echo "$csv"
 }
 
-core.csv_is_empty() {
+#
+# Retuns true if $1 manager's CSV is empty, false otherwise
+#
+core.csv.is_empty() {
   local manager="$1"
   local i=0
 
+  # Count non-empty lines
   while IFS=, read -ra line; do
     helpers.is_set "${line[0]}" && i=$((i + 1))
-  done < <(core.read_csv "$manager")
+  done < <(core.csv.get "$manager")
 
+  # Do we have non-empty lines?
   ! ((i > 0))
 }
 
 #
-# Returns true if `${PATHS[$1]}` equals false
+# Returns true if manager $1 is by-passed
 #
-core.is_bypassed() {
-  [[ "${PATHS[$1]}" == false ]]
+core.manager.is_bypassed() {
+  [[ "${CSVS[$1]}" == false ]]
 }
 
 #
-# Echos `${PATHS[$1]}`
+# Returns CSV path for manager $1
 #
-core.get_path() {
-  echo "${PATHS[$1]}"
+core.csv.path() {
+  echo "${CSVS[$1]}"
 }
 
 #
 # Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
 #
-core.is_system_manager() {
+core.manager.is_system() {
   array.includes "$1" SYSTEM_MANAGERS[@]
 }
 
@@ -724,7 +731,7 @@ node_get_remote_version() {
   npm view "$1" version
 }
 
-run_interactive() {
+command.interactive() {
   local managers
   local length
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
@@ -732,33 +739,32 @@ run_interactive() {
 
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
-    ! core.detect_manager "$manager" && continue
+    core.manager.exists "$manager" || continue
 
     [[ $i != 0 ]] && print.separator
     print.info "${BOLD}$manager${NO_COLOR}"
 
     local first=true
     local path
-    local default_path
+    local default_path=false
+    local color="$BLUE"
 
     while true; do
-      if core.is_bypassed "$manager"; then
-        default_path="${BLUE}false${NO_COLOR}"
-      else
-        core.resolve_path "$manager"
+      if ! core.manager.is_bypassed "$manager"; then
+        core.csv.resolve "$manager"
 
-        if core.detect_path "$manager" false; then
+        if core.csv.exists "$manager" false; then
           ! $first && break
-          default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
+          default_path=$(core.csv.path "$manager")
+          color="$GREEN"
         else
-          default_path="${BLUE}false${NO_COLOR}"
-          print.warning "Not found ${YELLOW}${PATHS[$manager]}${NO_COLOR}"
+          print.warning "Not found ${YELLOW}$path${NO_COLOR}"
         fi
       fi
 
-      path=$(print.input "CSV ($default_path):")
-      [[ "$path" =~ ^$ ]] && path=$(string.strip_sequences "$default_path")
-      PATHS[$manager]=$path
+      path=$(print.input "CSV (${color}$default_path${NO_COLOR}):")
+      [[ "$path" =~ ^$ ]] && path="$default_path"
+      CSVS[$manager]=$path
 
       [[ "$path" == false ]] && break
       first=false
@@ -768,7 +774,7 @@ run_interactive() {
   # TODO ask for action
 }
 
-status_update_table() {
+command.status.update_table() {
   local manager=$1
   local remove=$2
   local headers
@@ -809,7 +815,7 @@ status_update_table() {
     fi
 
     i=$((i + 1))
-  done < <(core.read_csv "$manager")
+  done < <(core.csv.get "$manager")
 
   local manager_version="${statuses[${manager}_version]}"
   local title
@@ -823,7 +829,7 @@ status_update_table() {
   table.print "$title" headers[@] levels[@] messages[@]
 }
 
-status_get_manager_version() {
+command.status.get_manager_version() {
   local manager=$1
 
   local version
@@ -833,7 +839,7 @@ status_get_manager_version() {
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-status_get_local_version() {
+command.status.get_local_version() {
   local dependency=$1
 
   local version="NONE"
@@ -843,7 +849,7 @@ status_get_local_version() {
   echo "${dependency}_local_version,$version" >"$FIFO"
 }
 
-status_get_remote_version() {
+command.status.get_remote_version() {
   local dependency=$1
 
   local version
@@ -854,29 +860,29 @@ status_get_remote_version() {
   echo "${dependency}_remote_version,$version" >"$FIFO"
 }
 
-run_status() {
+command.status() {
   local manager=$1
   declare -A statuses
 
   [ -p "$FIFO" ] && rm "$FIFO"
 
-  status_get_manager_version "$manager" &
+  command.status.get_manager_version "$manager" &
 
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
     ! helpers.is_set "$dependency" && continue
 
-    status_get_local_version  "$dependency" &
-    status_get_remote_version "$dependency" &
+    command.status.get_local_version  "$dependency" &
+    command.status.get_remote_version "$dependency" &
 
     i=$((i + 1))
-  done < <(core.read_csv "$manager")
+  done < <(core.csv.get "$manager")
 
   local redraw=false
   [ -t 1 ] && redraw=true
 
-  "$redraw" && status_update_table "$manager" 0
+  "$redraw" && command.status.update_table "$manager" 0
   mknod "$FIFO" p
 
   local j=0
@@ -887,19 +893,19 @@ run_status() {
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    "$redraw" && status_update_table "$manager" $((i + 3))
+    "$redraw" && command.status.update_table "$manager" $((i + 3))
 
     j=$((j + 1))
     (( j == $((i * 2 + 1)) )) && break
   done <"$FIFO"
 
-  ! "$redraw" && status_update_table "$manager" 0
+  ! "$redraw" && command.status.update_table "$manager" 0
 }
 
-run_install() {
+command.install() {
   local manager=$1
   local file
-  file=$(core.get_path "$manager")
+  file=$(core.csv.path "$manager")
 
   local i=1
   while IFS=, read -ra line; do
@@ -930,7 +936,7 @@ run_install() {
   done < "$file"
 }
 
-run_update() {
+command.update() {
   echo UPDATE
 }
 
@@ -973,15 +979,15 @@ main.parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        PATHS["apt"]="$3"; shift; shift;;
+        CSVS["apt"]="$3"; shift; shift;;
       -y|--yum)
-        PATHS["yum"]="$3"; shift; shift;;
+        CSVS["yum"]="$3"; shift; shift;;
       -p|--pacman)
-        PATHS["pacman"]="$3"; shift; shift;;
+        CSVS["pacman"]="$3"; shift; shift;;
       -n|--node)
-        PATHS["node"]="$3"; shift; shift;;
+        CSVS["node"]="$3"; shift; shift;;
       -r|--rust)
-        PATHS["rust"]="$3"; shift; shift;;
+        CSVS["rust"]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -1016,25 +1022,38 @@ main.parse_args() {
   done
 }
 
-run() {
+#
+# Runs $COMMAND for each managers
+#
+main.run() {
+  # User's system managers only and other managers
   declare -a managers
-  local length
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+
+  local length
   length=$(array.length managers[@])
 
+  # For each managers
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
-    core.is_bypassed   "$manager"    && continue
-    ! core.detect_path "$manager"    && continue
-
+    # Pass if is bypassed or CSV not found
+    core.manager.is_bypassed "$manager" && continue
+    core.csv.exists          "$manager" || continue
     [[ $i != 0 ]] && print.separator
-    ! core.detect_manager "$manager" && print.warning "${BOLD}$manager${NO_COLOR} not found" && continue
 
-    if core.csv_is_empty "$manager"; then
+    # Pass with warning if manager is not found
+    if ! core.manager.exists "$manager"; then
+      print.warning "${BOLD}$manager${NO_COLOR} not found"
+      continue
+    fi
+
+    # Run command for manager if CSV contains data,
+    # or print warning
+    if core.csv.is_empty "$manager"; then
       print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
     else
-      run_${COMMAND} "$manager"
+      command.${COMMAND} "$manager"
     fi
   done
 }
@@ -1045,8 +1064,8 @@ run() {
 #
 main() {
   main.parse_args "$@"
-  core.resolve_dir
-  core.detect_system
+  core.dir.resolve
+  core.manager.system
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
@@ -1057,14 +1076,14 @@ main() {
   print.separator
 
   for manager in "${MANAGERS[@]}"; do
-    core.is_bypassed "$manager" && continue
+    core.manager.is_bypassed "$manager" && continue
 
-    core.resolve_path "$manager"
-    core.detect_path "$manager"
+    core.csv.resolve "$manager"
+    core.csv.exists  "$manager"
   done
 
   if [[ "$COMMAND" == "interactive" ]]; then
-    run_interactive
+    command.interactive
     print.separator
   fi
 
@@ -1074,13 +1093,13 @@ main() {
   if [[ $COMMAND == "status" ]]; then
     local old_quiet=$QUIET
     QUIET=false
-    run
+    main.run
     QUIET=$old_quiet
   else
     if print.pre_run_confirm; then
       print.info Go!
       print.separator
-      run
+      main.run
     else
       print.info Bye!
       exit
