@@ -37,7 +37,7 @@ if [ -t 1 ]; then
 fi
 
 is_set() {
-  [[ ! -z "$1" ]]
+  [[ -n "$1" ]]
 }
 
 file_exists() {
@@ -119,7 +119,8 @@ string_center() {
   if (( width < length )); then
     echo "$str"
   else
-    local left_padding=$(((width - length) / 2))
+    local rest=$((width - length))
+    local left_padding=$((rest / 2))
     local right_padding=$((width - left_padding))
 
     local left
@@ -483,53 +484,58 @@ table_print() {
   local levels=("${!3}")
   local data=("${!4}")
 
-  local has_title=$(string_is_empty "$title" && echo false || echo true)
-  local has_headers=$(string_is_number $column_count && echo false || echo true)
+  local has_title
+  local has_headers
+  local row_count
+  has_title=$(string_is_empty "$title" && echo false || echo true)
+  has_headers=$(string_is_number "$column_count" && echo false || echo true)
   $has_headers && column_count=$(array_length headers[@])
-  local row_count=$(array_length levels[@])
+  row_count=$(array_length levels[@])
 
   local total_length
   local column_length=()
-  for column_index in $(seq 0 $(($column_count - 1))); do
+  for column_index in $(seq 0 $((column_count - 1))); do
     local column=()
-    table_get_column $column_index $column_count data[@]
+    table_get_column "$column_index" "$column_count" data[@]
 
-    local max_length=$(string_length "${headers[$column_index]}")
+    local max_length
+    max_length=$(string_length "${headers[$column_index]}")
     for cell in "${column[@]}"; do
-      local cell_length=$(string_length "$cell")
-      (( $cell_length > $max_length )) && max_length=$cell_length
+      local cell_length
+      cell_length=$(string_length "$cell")
+      (( cell_length > max_length )) && max_length=$cell_length
     done
 
-    (( $max_length == -1 )) && max_length=0
-    max_length=$(($max_length + $pad))
-    total_length=$(($total_length + $max_length))
+    ((max_length == -1)) && max_length=0
+    max_length=$((max_length + pad))
+    total_length=$((total_length + max_length))
     column_length[$column_index]=$max_length
   done
 
   $has_title && print_custom "  $(string_center "$title" $total_length)"
-  total_length=$(($total_length - $pad))
+  total_length=$((total_length - pad))
 
   if $has_headers; then
     local header_row=""
-    for column_index in $(seq 0 $(($column_count - 1))); do
+    for column_index in $(seq 0 $((column_count - 1))); do
       header=${headers[$column_index]}
       header_row="$header_row$(string_center "$header" "${column_length[$column_index]}")"
     done
-    print_custom "  ${header_row[@]}"
+    print_custom "  ${header_row[*]}"
   fi
 
-  for row_index in $(seq 0 $(($row_count - 1))); do
+  for row_index in $(seq 0 $((row_count - 1))); do
     local message=""
     local level="${levels[$row_index]}"
     local row=()
-    table_get_row $row_index $column_count data[@]
+    table_get_row "$row_index" "$column_count" data[@]
 
-    for column_index in $(seq 0 $(($column_count - 1))); do
+    for column_index in $(seq 0 $((column_count - 1))); do
       local cell="${row[$column_index]}"
       message="$message$(string_pad_right "$cell" "${column_length[$column_index]}")"
     done
 
-    print_${level} "$message"
+    "print_${level}" "$message"
   done
 }
 
@@ -537,15 +543,16 @@ table_get_row() {
   local row_index=$1
   local column_count=$2
   local data=("${!3}")
-  local first=$(($row_index * $column_count))
-  local last=$((($row_index + 1) * $column_count - 1))
+  local first=$((row_index * column_count))
+  local rowi1=$((row_index + 1))
+  local last=$((rowi1 * column_count - 1))
 
   local i=-1
   for cell in "${data[@]}"; do
-    i=$(($i + 1))
+    i=$((i + 1))
 
-    (( $i < $first )) && continue
-    (( $i > $last  )) && break
+    ((i < first)) && continue
+    ((i > last )) && break
     row+=("$cell")
   done
 }
@@ -557,11 +564,13 @@ table_get_column() {
 
   local i=-1
   for cell in "${data[@]}"; do
-    i=$(($i + 1))
+    i=$((i + 1))
 
-    (( $(($i % $column_count)) == $column_index )) \
-      && column+=("$cell") \
-      || continue
+    if (($((i % column_count)) == column_index)); then
+      column+=("$cell")
+    else
+      continue
+    fi
   done
 }
 
@@ -570,23 +579,24 @@ apt_detect() {
 }
 
 apt_version() {
-  echo $(apt --version)
+  apt --version
 }
 
 apt_is_installed() {
   local dependency=$1
-  local list=$(apt list --installed $dependency 2>/dev/null | sed 's/Listing...//')
+  local list
+  list=$(apt list --installed "$dependency" 2>/dev/null | sed 's/Listing...//')
 
-  echo $list | grep "^$dependency/" | grep '\[installed' >/dev/null 2>&1
+  echo "$list" | grep "^$dependency/" | grep '\[installed' >/dev/null 2>&1
 }
 
 
 apt_get_local_version() {
-  apt-cache policy $1 | sed '2q;d' | sed 's/  Installed: \(.*\).*/\1/'
+  apt-cache policy "$1" | sed '2q;d' | sed 's/  Installed: \(.*\).*/\1/'
 }
 
 apt_get_remote_version() {
-  apt-cache policy $1 | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
+  apt-cache policy "$1" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
 }
 
 node_detect() {
@@ -594,32 +604,34 @@ node_detect() {
 }
 
 node_version() {
-  echo $(node --version)
+  node --version
 }
 
 node_is_installed() {
   local dependency=$1
-  local list=$(npm list --global --depth 0 $dependency)
+  local list
+  list=$(npm list --global --depth 0 "$dependency")
 
-  echo $list | grep "── $dependency@" >/dev/null 2>&1
+  echo "$list" | grep "── $dependency@" >/dev/null 2>&1
 }
 
 node_get_local_version() {
-  npm list --global --depth 0 $1 | sed '2q;d' | sed 's/└── .*@//'
+  npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── .*@//'
 }
 
 node_get_remote_version() {
-  npm view $1 version
+  npm view "$1" version
 }
 
 run_interactive() {
-  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
-  local length=$(array_length managers[@])
+  local managers
+  local length
+  managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+  length=$(array_length managers[@])
 
-  for i in $(seq 0 $(($length - 1))); do
-    local ok=false
+  for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
-    ! detect_manager $manager && continue
+    ! detect_manager "$manager" && continue
 
     [[ $i != 0 ]] && print_separator
     print_info "${BOLD}$manager${NO_COLOR}"
@@ -629,12 +641,12 @@ run_interactive() {
     local default_path
 
     while true; do
-      if is_bypassed $manager; then
+      if is_bypassed "$manager"; then
         default_path="${BLUE}false${NO_COLOR}"
       else
-        resolve_path $manager
+        resolve_path "$manager"
 
-        if detect_path $manager false; then
+        if detect_path "$manager" false; then
           ! $first && break
           default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
         else
@@ -644,7 +656,7 @@ run_interactive() {
       fi
 
       path=$(print_input "CSV ($default_path):")
-      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences $default_path)
+      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences "$default_path")
       PATHS[$manager]=$path
 
       [[ "$path" == false ]] && break
@@ -657,21 +669,24 @@ run_interactive() {
 status_update_table() {
   local manager=$1
   local remove=$2
-  local headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local headers
+  headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
   local levels=()
   local messages=()
 
-  (( $remove > 0 )) && echo -e $(tput cuu $remove)
+  ((remove > 0)) && echo -e "$(tput cuu "$remove")"
 
   local i=1
-  while IFS=, read -a line; do
+  while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! is_set $dependency && continue
+    ! is_set "$dependency" && continue
 
     local local_version="${statuses[${dependency}_local_version]}"
     local remote_version="${statuses[${dependency}_remote_version]}"
-    local local_version_done=$(is_set $local_version && echo true || echo false)
-    local remote_version_done=$(is_set $remote_version && echo true || echo false)
+    local local_version_done
+    local remote_version_done
+    local_version_done=$(is_set "$local_version" && echo true || echo false)
+    remote_version_done=$(is_set "$remote_version" && echo true || echo false)
 
     messages+=("${BOLD}$dependency${NO_COLOR}")
     $local_version_done  && messages+=("$local_version")  || messages+=("...")
@@ -691,117 +706,126 @@ status_update_table() {
       levels+=("info")
     fi
 
-    i=$(($i + 1))
-  done < <(read_csv $manager)
+    i=$((i + 1))
+  done < <(read_csv "$manager")
 
   local manager_version="${statuses[${manager}_version]}"
-  local title=$(is_set $manager_version \
-    && echo "${BLUE}${BOLD}$manager${NO_COLOR} ($manager_version)" \
-    || echo "${BLUE}${BOLD}$manager${NO_COLOR} (...)")
+  local title
+
+  if is_set "$manager_version"; then
+    title="${BLUE}${BOLD}$manager${NO_COLOR} ($manager_version)"
+  else
+    title="${BLUE}${BOLD}$manager${NO_COLOR} (...)"
+  fi
+
   table_print "$title" headers[@] levels[@] messages[@]
 }
 
 status_get_manager_version() {
   local manager=$1
 
-  local version=$(${manager}_version)
+  local version
+  version=$("${manager}_version")
 
-  until [ -p $FIFO ]; do sleep 0.1; done
-  echo "${manager}_version,$version" >$FIFO
+  until [ -p "$FIFO" ]; do sleep 0.1; done
+  echo "${manager}_version,$version" >"$FIFO"
 }
 
 status_get_local_version() {
   local dependency=$1
 
   local version="NONE"
-  ${manager}_is_installed $dependency && version=$(${manager}_get_local_version $dependency)
+  "${manager}_is_installed" "$dependency" && version=$("${manager}_get_local_version" "$dependency")
 
-  until [ -p $FIFO ]; do sleep 0.1; done
-  echo "${dependency}_local_version,$version" >$FIFO
+  until [ -p "$FIFO" ]; do sleep 0.1; done
+  echo "${dependency}_local_version,$version" >"$FIFO"
 }
 
 status_get_remote_version() {
   local dependency=$1
 
-  local version=$(${manager}_get_remote_version $dependency)
-  ! is_set $version && version="NONE"
+  local version
+  version=$("${manager}_get_remote_version" "$dependency")
+  ! is_set "$version" && version="NONE"
 
-  until [ -p $FIFO ]; do sleep 0.1; done
-  echo "${dependency}_remote_version,$version" >$FIFO
+  until [ -p "$FIFO" ]; do sleep 0.1; done
+  echo "${dependency}_remote_version,$version" >"$FIFO"
 }
 
 run_status() {
   local manager=$1
   declare -A statuses
 
-  [ -p $FIFO ] && rm $FIFO
+  [ -p "$FIFO" ] && rm "$FIFO"
 
-  status_get_manager_version $manager &
+  status_get_manager_version "$manager" &
 
   local i=0
-  while IFS=, read -a line; do
+  while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! is_set $dependency && continue
+    ! is_set "$dependency" && continue
 
-    status_get_local_version  $dependency &
-    status_get_remote_version $dependency &
+    status_get_local_version  "$dependency" &
+    status_get_remote_version "$dependency" &
 
-    i=$(($i + 1))
-  done < <(read_csv $manager)
+    i=$((i + 1))
+  done < <(read_csv "$manager")
 
   local redraw=false
   [ -t 1 ] && redraw=true
 
-  $redraw && status_update_table $manager 0
-  mknod $FIFO p
+  "$redraw" && status_update_table "$manager" 0
+  mknod "$FIFO" p
 
   local j=0
   while true; do
-    read data
-    ! is_set $data && continue
+    read -r data
+    ! is_set "$data" && continue
 
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    $redraw && status_update_table $manager $(($i + 3))
+    "$redraw" && status_update_table "$manager" $((i + 3))
 
-    j=$(($j + 1))
-    (( $j == $(($i * 2 + 1)) )) && break
-  done <$FIFO
+    j=$((j + 1))
+    (( j == $((i * 2 + 1)) )) && break
+  done <"$FIFO"
 
-  ! $redraw && status_update_table $manager 0
+  ! "$redraw" && status_update_table "$manager" 0
 }
 
 run_install() {
   local manager=$1
-  local file=$(get_path $manager)
+  local file
+  file=$(get_path "$manager")
 
   local i=1
-  while IFS=, read -a line; do
+  while IFS=, read -ra line; do
     local dependency=${line[0]}
     local installed=false
     local local_version="NONE"
-    local remote_version=$(${manager}_get_remote_version $dependency)
+    local remote_version
+      remote_version=$("${manager}_get_remote_version" "$dependency")
     local up_to_date
 
-    ! is_set $remote_version && remote_version="NONE"
+    ! is_set "$remote_version" && remote_version="NONE"
 
-    if ${manager}_is_installed $dependency; then
+    if "${manager}_is_installed" "$dependency"; then
       installed=true
-      local_version=$(${manager}_get_local_version $dependency)
+      local_version=$("${manager}_get_local_version" "$dependency")
       up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 
     if ! $installed; then
-      print_info INSTALL!!!!! $dependency
+      print_info "INSTALL!!!!! $dependency"
     elif $up_to_date; then
       print_success "${BOLD}$dependency${NO_COLOR} is up-to-date ($local_version)"
     else
       print_warning "${BOLD}$dependency${NO_COLOR} is not up-to-date"
     fi
 
-    i=$(($i + 1))
-  done < $file
+    i=$((i + 1))
+  done < "$file"
 }
 
 run_update() {
@@ -887,7 +911,7 @@ parse_args() {
 run() {
   declare -a managers
   local length
-  managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
+  managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
   length=$(array_length managers[@])
 
   for i in $(seq 0 $((length - 1))); do

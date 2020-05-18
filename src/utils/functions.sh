@@ -1,4 +1,6 @@
-#!/bin/bash
+# shellcheck shell=bash
+# shellcheck source=../vars.sh
+. ""
 
 #
 # Sets `DIR` according to (in this precedence order):
@@ -87,11 +89,11 @@ detect_manager() {
   fi
 
   # Detection
-  if command_exists "${manager}_detect" && ${manager}_detect; then
-    is_system_manager $manager && __cache_detect_manager[$manager]=true
+  if command_exists "${manager}_detect" && "${manager}_detect"; then
+    is_system_manager "$manager" && __cache_detect_manager[$manager]=true
     true
   else
-    is_system_manager $manager && __cache_detect_manager[$manager]=false
+    is_system_manager "$manager" && __cache_detect_manager[$manager]=false
     false
   fi
 }
@@ -100,10 +102,10 @@ detect_manager() {
 # Sets `SYSTEM_MANAGER` to the first system manager detected
 #
 detect_system() {
-  is_set $SYSTEM && return
+  is_set "$SYSTEM_MANAGER" && return
 
   for manager in "${SYSTEM_MANAGERS[@]}"; do
-    if detect_manager $manager; then
+    if detect_manager "$manager"; then
       SYSTEM_MANAGER="$manager"
       return
     fi
@@ -140,11 +142,11 @@ csv_is_empty() {
   local manager="$1"
   local i=0
 
-  while IFS=, read -a line; do
-    is_set ${line[0]} && i=$(($i + 1))
-  done < <(read_csv $manager)
+  while IFS=, read -ra line; do
+    is_set "${line[0]}" && i=$((i + 1))
+  done < <(read_csv "$manager")
 
-  ! (( $i > 0 ))
+  ! ((i > 0))
 }
 
 #
@@ -165,7 +167,6 @@ get_path() {
 # Returns true if $1 is in `SYSTEM_MANAGERS`, false otherwise
 #
 is_system_manager() {
-  # TODO array contains
-  [[ " ${SYSTEM_MANAGERS[@]} " =~ " $1 " ]]
+  array_includes "$1" SYSTEM_MANAGERS[@]
 }
 

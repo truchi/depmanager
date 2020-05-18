@@ -1,10 +1,10 @@
-#!/bin/bash
+# shellcheck shell=bash
 
 #
 # Returns true is $1 is set, false otherwise
 #
 is_set() {
-  [[ ! -z "$1" ]]
+  [[ -n "$1" ]]
 }
 
 #

@@ -1,13 +1,14 @@
-#!/bin/bash
+# shellcheck shell=bash
 
 run_interactive() {
-  local managers=($SYSTEM_MANAGER "${NON_SYSTEM_MANAGERS[@]}")
-  local length=$(array_length managers[@])
+  local managers
+  local length
+  managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+  length=$(array_length managers[@])
 
-  for i in $(seq 0 $(($length - 1))); do
-    local ok=false
+  for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
-    ! detect_manager $manager && continue
+    ! detect_manager "$manager" && continue
 
     [[ $i != 0 ]] && print_separator
     print_info "${BOLD}$manager${NO_COLOR}"
@@ -17,12 +18,12 @@ run_interactive() {
     local default_path
 
     while true; do
-      if is_bypassed $manager; then
+      if is_bypassed "$manager"; then
         default_path="${BLUE}false${NO_COLOR}"
       else
-        resolve_path $manager
+        resolve_path "$manager"
 
-        if detect_path $manager false; then
+        if detect_path "$manager" false; then
           ! $first && break
           default_path="${GREEN}${PATHS[$manager]}${NO_COLOR}"
         else
@@ -32,7 +33,7 @@ run_interactive() {
       fi
 
       path=$(print_input "CSV ($default_path):")
-      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences $default_path)
+      [[ "$path" =~ ^$ ]] && path=$(string_strip_sequences "$default_path")
       PATHS[$manager]=$path
 
       [[ "$path" == false ]] && break
