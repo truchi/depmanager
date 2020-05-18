@@ -1,46 +1,44 @@
 # shellcheck shell=bash
-# shellcheck source=functions.sh
-. ""
 
-print_separator() {
+print.separator() {
   $QUIET && return
   echo "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
 }
 
-print_date() {
+print.date() {
   echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
 }
 
-print_error() {
-  echo "$(print_date) ${RED}${BOLD}✗${NO_COLOR} $*"
+print.error() {
+  echo "$(print.date) ${RED}${BOLD}✗${NO_COLOR} $*"
 }
 
-print_warning() {
+print.warning() {
   $QUIET && return
-  echo "$(print_date) ${YELLOW}${BOLD}!${NO_COLOR} $*"
+  echo "$(print.date) ${YELLOW}${BOLD}!${NO_COLOR} $*"
 }
 
-print_success() {
+print.success() {
   $QUIET && return
-  echo "$(print_date) ${GREEN}${BOLD}✔${NO_COLOR} $*"
+  echo "$(print.date) ${GREEN}${BOLD}✔${NO_COLOR} $*"
 }
 
-print_info() {
+print.info() {
   $QUIET && return
-  echo "$(print_date) ${BLUE}${BOLD}i${NO_COLOR} $*"
+  echo "$(print.date) ${BLUE}${BOLD}i${NO_COLOR} $*"
 }
 
-print_custom() {
+print.custom() {
   $QUIET && return
-  echo "$(print_date) $*"
+  echo "$(print.date) $*"
 }
 
-print_confirm() {
+print.confirm() {
   # Auto confirm if flag is given
   $YES && return
 
   # Prompt confirmation message
-  read -p "$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} ${YELLOW}(Y)${NO_COLOR} " -n 1 -r
+  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} ${YELLOW}(Y)${NO_COLOR} " -n 1 -r
 
   # Carriage return if user did not press enter
   [[ ! "$REPLY" =~ ^$ ]] && echo
@@ -49,27 +47,27 @@ print_confirm() {
   [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
 }
 
-print_input() {
+print.input() {
   # Prompt input
-  read -p "$(print_date) ${YELLOW}${BOLD}?${NO_COLOR} $* " -r
+  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $* " -r
 
   echo "$REPLY"
 }
 
-print_choice() {
+print.choice() {
   echo "print choice ..."
 }
 
-print_version() {
+print.version() {
   echo "${YELLOW}v0.0.1${NO_COLOR}"
 }
 
-print_summary() {
-  echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print_version)
+print.summary() {
+  echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print.version)
 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
-print_help() {
+print.help() {
   local cmd
   cmd=$(basename "$0")
 
@@ -109,59 +107,58 @@ ${BOLD}${BLUE}Links:${NO_COLOR}
 "
 }
 
-print_system_info() {
+print.system_info() {
   local dir
-  is_set "$DEPMANAGER_DIR" && dir="\$DEPMANAGER_DIR" || dir="default"
-  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(get_path dir)${NO_COLOR}" "($dir)")
+  helpers.is_set "$DEPMANAGER_DIR" && dir="\$DEPMANAGER_DIR" || dir="default"
+  dir=("${BOLD}Depmanager directory${NO_COLOR}" "${BLUE}$(core.get_path dir)${NO_COLOR}" "($dir)")
 
-  if is_set "$SYSTEM_MANAGER"; then
+  if helpers.is_set "$SYSTEM_MANAGER"; then
     local version
     local levels=("info" "info")
     local messages=("${dir[@]}")
     version=$("${SYSTEM_MANAGER}_version")
     messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
 
-    table_print "" 3 levels[@] messages[@]
+    table.print "" 3 levels[@] messages[@]
   else
-    print_info "${dir[@]}"
-    print_warning "${BOLD}Your system's manager is not supported${NO_COLOR}"
+    print.info "${dir[@]}"
+    print.warning "${BOLD}Your system's manager is not supported${NO_COLOR}"
   fi
 }
 
-print_csv_info() {
+print.csv_info() {
   local i=0
   local levels=()
   local messages=()
   for manager in "${MANAGERS[@]}"; do
     # Ignore system manager which are not detected on user's system
-    if is_system_manager "$manager"; then
-      detect_manager "$manager"
-      [[ $(code_to_boolean $?) != true ]] && continue
+    if core.is_system_manager "$manager"; then
+      ! core.detect_manager "$manager" && continue
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif detect_path "$manager"; then messages+=("${GREEN}$(get_path "$manager")${NO_COLOR}")
-    else                              messages+=("${YELLOW}$(get_path "$manager")${NO_COLOR}")
+    if   core.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
+    elif core.detect_path "$manager"; then messages+=("${GREEN}$(core.get_path  "$manager")${NO_COLOR}")
+    else                                   messages+=("${YELLOW}$(core.get_path "$manager")${NO_COLOR}")
     fi
 
-    if   is_bypassed "$manager"; then  levels+=("info")
-    elif detect_path "$manager"; then  levels+=("success")
-    else                               levels+=("warning")
+    if   core.is_bypassed "$manager"; then  levels+=("info")
+    elif core.detect_path "$manager"; then  levels+=("success")
+    else                                    levels+=("warning")
     fi
 
     i=$((i + 1))
   done
 
-  table_print "" 2 levels[@] messages[@]
+  table.print "" 2 levels[@] messages[@]
 }
 
-print_pre_run_confirm() {
-  ! $SIMULATE && print_info "${BOLD}${BLUE}Tip${NO_COLOR}: run with --simulate first"
+print.pre_run_confirm() {
+  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip${NO_COLOR}: run with --simulate first"
 
   # Ask for confirmation
-  if $SIMULATE; then print_confirm "Simulate $COMMAND?"
-  else               print_confirm "Run $COMMAND?"
+  if $SIMULATE; then print.confirm "Simulate $COMMAND?"
+  else               print.confirm "Run $COMMAND?"
   fi
 }
 

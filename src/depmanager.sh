@@ -13,7 +13,7 @@
 . ""
 # shellcheck source=utils/table.sh
 . ""
-# shellcheck source=utils/functions.sh
+# shellcheck source=core.sh
 . ""
 # shellcheck source=managers/apt.sh
 . ""
@@ -31,19 +31,19 @@
 #
 # Parses args, filling the appropriate global variables
 #
-parse_args() {
+main.parse_args() {
   # Print summary, version and help
   if (( $# == 0 )); then
-    print_summary
+    print.summary
     echo
-    print_help
+    print.help
     exit
   elif (( $# == 1 )); then
-    if string_equals "$1" "-v" || string_equals "$1" "--version"; then
-      print_version
+    if string.equals "$1" "-v" || string.equals "$1" "--version"; then
+      print.version
       exit
-    elif string_equals "$1" "-h" || string_equals "$1" "--help"; then
-      print_help
+    elif string.equals "$1" "-h" || string.equals "$1" "--help"; then
+      print.help
       exit
     fi
   fi
@@ -59,7 +59,7 @@ parse_args() {
     u|update)
       COMMAND="update";;
     *)
-      print_error "Unknown command: $1"
+      print.error "Unknown command: $1"
       exit
   esac
 
@@ -83,28 +83,28 @@ parse_args() {
       -S|--simulate)
         SIMULATE=true; shift;;
       -*)
-        if string_equals "$2" "-"; then
-          print_error "There might be an error in your command, found a lone '-'"
+        if string.equals "$2" "-"; then
+          print.error "There might be an error in your command, found a lone '-'"
           exit
         fi
 
         local flags
         local non_flags
-        flags=$(string_substring "$2" 1)
-        non_flags=$(string_replace "$flags" "[QYS]")
+        flags=$(string.substring "$2" 1)
+        non_flags=$(string.replace "$flags" "[QYS]")
 
-        string_contains "$flags" "Q" && QUIET=true
-        string_contains "$flags" "Y" && YES=true
-        string_contains "$flags" "S" && SIMULATE=true
+        string.contains "$flags" "Q" && QUIET=true
+        string.contains "$flags" "Y" && YES=true
+        string.contains "$flags" "S" && SIMULATE=true
 
-        if ! string_is_empty "$non_flags"; then
-          print_error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
+        if ! string.is_empty "$non_flags"; then
+          print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
           exit
         fi
 
         shift;;
       *)
-        print_error "Unknown option: ${BOLD}$2${NO_COLOR}"
+        print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
         exit
     esac
   done
@@ -114,19 +114,19 @@ run() {
   declare -a managers
   local length
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
-  length=$(array_length managers[@])
+  length=$(array.length managers[@])
 
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
-    is_bypassed "$manager"      && continue
-    ! detect_path "$manager"    && continue
+    core.is_bypassed   "$manager"    && continue
+    ! core.detect_path "$manager"    && continue
 
-    [[ $i != 0 ]] && print_separator
-    ! detect_manager "$manager" && print_warning "${BOLD}$manager${NO_COLOR} not found" && continue
+    [[ $i != 0 ]] && print.separator
+    ! core.detect_manager "$manager" && print.warning "${BOLD}$manager${NO_COLOR} not found" && continue
 
-    if csv_is_empty "$manager"; then
-      print_warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
+    if core.csv_is_empty "$manager"; then
+      print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
     else
       run_${COMMAND} "$manager"
     fi
@@ -138,32 +138,32 @@ run() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  parse_args "$@"
-  resolve_dir
-  detect_system
+  main.parse_args "$@"
+  core.resolve_dir
+  core.detect_system
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
     YES=false
   fi
 
-  print_system_info
-  print_separator
+  print.system_info
+  print.separator
 
   for manager in "${MANAGERS[@]}"; do
-    is_bypassed "$manager" && continue
+    core.is_bypassed "$manager" && continue
 
-    resolve_path "$manager"
-    detect_path "$manager"
+    core.resolve_path "$manager"
+    core.detect_path "$manager"
   done
 
   if [[ "$COMMAND" == "interactive" ]]; then
     run_interactive
-    print_separator
+    print.separator
   fi
 
-  print_csv_info
-  print_separator
+  print.csv_info
+  print.separator
 
   if [[ $COMMAND == "status" ]]; then
     local old_quiet=$QUIET
@@ -171,18 +171,18 @@ main() {
     run
     QUIET=$old_quiet
   else
-    if print_pre_run_confirm; then
-      print_info Go!
-      print_separator
+    if print.pre_run_confirm; then
+      print.info Go!
+      print.separator
       run
     else
-      print_info Bye!
+      print.info Bye!
       exit
     fi
   fi
 
-  print_separator
-  print_info Done!
+  print.separator
+  print.info Done!
 }
 
 # Run

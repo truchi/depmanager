@@ -1,25 +1,25 @@
 # shellcheck shell=bash
 
-string_is_empty() {
+string.is_empty() {
   [[ -z "$1" ]]
 }
 
-string_raw_length() {
+string.raw_length() {
   local str="$1"
   echo ${#str}
 }
 
-string_length() {
+string.length() {
   local str
-  str=$(string_strip_sequences "$1")
+  str=$(string.strip_sequences "$1")
   echo ${#str}
 }
 
-string_strip_sequences() {
+string.strip_sequences() {
   echo -e "$1" | sed "s/$(echo -e "\e")[^m]*m//g"
 }
 
-string_is_number() {
+string.is_number() {
   local re='^[0-9]+$'
   [[ "$1" =~ $re ]]
 }
@@ -27,56 +27,56 @@ string_is_number() {
 #
 # Returns true if $@ starts with /, false otherwise
 #
-string_is_absolute() {
+string.is_absolute() {
   [[ "$1" =~ / ]]
 }
 
 #
 # Returns true if $@ starts with https?://, false otherwise
 #
-string_is_url() {
+string.is_url() {
   [[ "$1" =~ https?:// ]]
 }
 
 #
 # Retuns true if $1 contains $2, false otherwise
 #
-string_contains() {
+string.contains() {
   [[ "$1" == *"$2"* ]]
 }
 
 #
 # Replaces $2 with $3 in $1
 #
-string_replace() {
+string.replace() {
   echo "${1//$2/$3}"
 }
 
 #
 # Returns true if $1 equals $2, false otherwise
 #
-string_equals() {
+string.equals() {
   [[ "$1" == "$2" ]]
 }
 
 #
 # Returns $1 from index $2 with length $3 (optional)
 #
-string_substring() {
+string.substring() {
   local string="$1"
   local offset="$2"
   local length="$3"
 
-  ! is_set "$length" && length=$(string_length "$string")
+  ! helpers.is_set "$length" && length=$(string.length "$string")
 
   echo "${string:$offset:$length}"
 }
 
-string_center() {
+string.center() {
   local str="$1"
   local width="$2"
   local length
-  length=$(string_length "$str")
+  length=$(string.length "$str")
 
   if (( width < length )); then
     echo "$str"
@@ -88,19 +88,19 @@ string_center() {
     local left
     local right
 
-    left=$(string_pad_right "" $left_padding)
-    right=$(string_pad_right "$str" $right_padding)
+    left=$(string.pad_right "" $left_padding)
+    right=$(string.pad_right "$str" $right_padding)
     echo "$left$right"
   fi
 }
 
-string_pad_right() {
+string.pad_right() {
   local str="$1"
   local width="$2"
   local length
-  length=$(string_length "$str")
+  length=$(string.length "$str")
   local raw_length
-  raw_length=$(string_raw_length "$str")
+  raw_length=$(string.raw_length "$str")
 
   printf "%-$((width + raw_length - length))s" "$str"
 }

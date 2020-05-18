@@ -3,7 +3,7 @@
 #
 # Returns length of array $1
 #
-array_length() {
+array.length() {
   local array=("${!1}")
   echo "${#array[*]}"
 }
@@ -11,7 +11,7 @@ array_length() {
 #
 # Returns true if $1 is found in $2, false otherwise
 #
-array_includes() {
+array.includes() {
   local needle="$1"
   local array=("${!2}")
 

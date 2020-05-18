@@ -13,14 +13,14 @@ status_update_table() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! is_set "$dependency" && continue
+    ! helpers.is_set "$dependency" && continue
 
     local local_version="${statuses[${dependency}_local_version]}"
     local remote_version="${statuses[${dependency}_remote_version]}"
     local local_version_done
     local remote_version_done
-    local_version_done=$(is_set "$local_version" && echo true || echo false)
-    remote_version_done=$(is_set "$remote_version" && echo true || echo false)
+    local_version_done=$(helpers.is_set "$local_version" && echo true || echo false)
+    remote_version_done=$(helpers.is_set "$remote_version" && echo true || echo false)
 
     messages+=("${BOLD}$dependency${NO_COLOR}")
     $local_version_done  && messages+=("$local_version")  || messages+=("...")
@@ -41,18 +41,18 @@ status_update_table() {
     fi
 
     i=$((i + 1))
-  done < <(read_csv "$manager")
+  done < <(core.read_csv "$manager")
 
   local manager_version="${statuses[${manager}_version]}"
   local title
 
-  if is_set "$manager_version"; then
+  if helpers.is_set "$manager_version"; then
     title="${BLUE}${BOLD}$manager${NO_COLOR} ($manager_version)"
   else
     title="${BLUE}${BOLD}$manager${NO_COLOR} (...)"
   fi
 
-  table_print "$title" headers[@] levels[@] messages[@]
+  table.print "$title" headers[@] levels[@] messages[@]
 }
 
 status_get_manager_version() {
@@ -80,7 +80,7 @@ status_get_remote_version() {
 
   local version
   version=$("${manager}_get_remote_version" "$dependency")
-  ! is_set "$version" && version="NONE"
+  ! helpers.is_set "$version" && version="NONE"
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
   echo "${dependency}_remote_version,$version" >"$FIFO"
@@ -97,13 +97,13 @@ run_status() {
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! is_set "$dependency" && continue
+    ! helpers.is_set "$dependency" && continue
 
     status_get_local_version  "$dependency" &
     status_get_remote_version "$dependency" &
 
     i=$((i + 1))
-  done < <(read_csv "$manager")
+  done < <(core.read_csv "$manager")
 
   local redraw=false
   [ -t 1 ] && redraw=true
@@ -114,7 +114,7 @@ run_status() {
   local j=0
   while true; do
     read -r data
-    ! is_set "$data" && continue
+    ! helpers.is_set "$data" && continue
 
     local array
     IFS=, read -r -a array <<< "$data"

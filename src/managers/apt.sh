@@ -4,7 +4,7 @@
 # Returns true if apt is found on the system, false otherwise
 #
 apt_detect() {
-  command_exists apt && command_exists apt-cache && command_exists dpkg
+  helpers.command_exists apt && helpers.command_exists apt-cache && helpers.command_exists dpkg
 }
 
 #
