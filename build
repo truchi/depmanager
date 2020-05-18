@@ -4,7 +4,7 @@ NO_COLOR=$(tput sgr0)
 BOLD=$(tput bold)
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
-# YELLOW=$(tput setaf 3)
+YELLOW=$(tput setaf 3)
 BLUE=$(tput setaf 4)
 # MAGENTA=$(tput setaf 5)
 CYAN=$(tput setaf 6)
@@ -16,10 +16,12 @@ CYAN=$(tput setaf 6)
 function build {
   local src
   local dest
+  local dest_min=false
   src=$(realpath "$1")
   dest=$(realpath "$2")
+  [[ -n "$3" ]] && dest_min=$(realpath "$3")
 
-  echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building ${CYAN}$src${NO_COLOR}"
+  echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building   ${CYAN}$src${NO_COLOR}"
 
   # Get all the files to import
   declare -a all_imports
@@ -31,11 +33,28 @@ function build {
   output=$(concat_files "$src")
   output=$(clean_directives "$output")
 
-  # Write
+  # Write dest file
   mkdir -p "$(dirname "$dest")"
   echo -e "$output" > "$dest"
+  echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built      ${CYAN}$dest${NO_COLOR}"
 
-  echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built    ${CYAN}$dest${NO_COLOR}"
+  # Check for shellcheck errors
+  check_errors "$dest"
+
+  # Write dest min file
+  if [[ "$dest_min" != false ]]; then
+    echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Minifying  ${CYAN}$src${NO_COLOR}"
+
+    local output_min
+    output_min=$(clean_comments "$output")
+
+    mkdir -p "$(dirname "$dest_min")"
+    echo -e "$output_min" > "$dest_min"
+    echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built      ${CYAN}$dest_min${NO_COLOR}"
+
+    # Check for shellcheck errors
+    check_errors "$dest_min"
+  fi
 }
 
 #
@@ -49,13 +68,14 @@ function resolve_imports() {
   # Error if file is not found
   if [[ ! -f "$file" ]]; then
     echo "${BOLD}${RED}✗${NO_COLOR} ${CYAN}$file ${RED}not found${NO_COLOR}"
-    exit
+    echo "${BOLD}${RED}Build failed${NO_COLOR}"
+    exit 1
   fi
 
   # Assumes shellcheck source directive paths are relative to current file
   dir=$(dirname "$file")
 
-  # Mark $file as imported 
+  # Mark $file as imported
   all_imports+=("$file")
   file_imports[$file]=""
 
@@ -107,6 +127,33 @@ function clean_directives() {
 }
 
 #
+# Removes some shellcheck directives
+#
+function clean_comments() {
+  local string="$1"
+
+  # Remove comments
+  string=$(perl -pe 's/^ *#[^!\n].*\n//gm' <<< "$string")
+  string=$(perl -pe 's/^ *#\n//gm' <<< "$string")
+
+  # Return
+  echo "$string"
+}
+
+function check_errors() {
+  if command -v shellcheck >/dev/null 2>&1; then
+    local shellcheck_success
+    shellcheck_success=$(shellcheck -S error "$1" > /dev/null && echo true || echo false)
+
+    if $shellcheck_success; then
+      echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$dest ${GREEN}has no errors${NO_COLOR}"
+    else
+      echo "${BOLD}${YELLOW}!${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$dest ${YELLOW}has some errors${NO_COLOR}"
+    fi
+  fi
+}
+
+#
 # Returns true if $1 is found in $2, false otherwise
 #
 function array_includes() {
@@ -123,6 +170,7 @@ function array_includes() {
   false
 }
 
-build src/depmanager.sh dist/depmanager.sh
+# build src/depmanager.sh dist/depmanager.sh
+build src/depmanager.sh dist/depmanager.sh dist/depmanager.min.sh
 echo "${BOLD}${GREEN}Build complete${NO_COLOR}"
 

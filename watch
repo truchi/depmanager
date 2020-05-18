@@ -30,9 +30,11 @@ function watch() {
 # Runs ./build
 #
 function build_sources() {
-  ./build
+  local success=false
+
+  ./build && success=true
   echo "${BLUE}Watching ${CYAN}$SRC${NO_COLOR}"
-  execute_program "$@"
+  $success && execute_program "$@"
 }
 
 #
