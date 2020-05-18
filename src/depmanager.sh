@@ -71,15 +71,15 @@ main.parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        CSVS["apt"]="$3"; shift; shift;;
+        CSVS[apt]="$3"; shift; shift;;
       -y|--yum)
-        CSVS["yum"]="$3"; shift; shift;;
+        CSVS[yum]="$3"; shift; shift;;
       -p|--pacman)
-        CSVS["pacman"]="$3"; shift; shift;;
+        CSVS[pacman]="$3"; shift; shift;;
       -n|--node)
-        CSVS["node"]="$3"; shift; shift;;
+        CSVS[node]="$3"; shift; shift;;
       -r|--rust)
-        CSVS["rust"]="$3"; shift; shift;;
+        CSVS[rust]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)

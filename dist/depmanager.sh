@@ -778,7 +778,6 @@ command.interactive() {
 
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
-    core.manager.exists "$manager" || continue
 
     [[ $i != 0 ]] && print.separator
     print.info "${BOLD}$manager${NO_COLOR}"
