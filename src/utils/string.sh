@@ -62,7 +62,7 @@ string.equals() {
 #
 # Returns $1 from index $2 with length $3 (optional)
 #
-string.substring() {
+string.slice() {
   local string="$1"
   local offset="$2"
   local length="$3"

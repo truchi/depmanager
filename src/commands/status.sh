@@ -55,31 +55,33 @@ command.status.update_table() {
   table.print "$title" headers[@] levels[@] messages[@]
 }
 
-command.status.get_manager_version() {
+command.status.manager.version() {
   local manager=$1
 
   local version
-  version=$("${manager}_version")
+  version=$(core.manager.version "$manager")
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-command.status.get_local_version() {
+command.status.package.local_version() {
   local dependency=$1
 
   local version="NONE"
-  "${manager}_is_installed" "$dependency" && version=$("${manager}_get_local_version" "$dependency")
+  if core.package.is_installed "$manager" "$dependency" false; then
+    version=$(core.package.local_version "$manager" "$dependency" false)
+  fi
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
   echo "${dependency}_local_version,$version" >"$FIFO"
 }
 
-command.status.get_remote_version() {
+command.status.package.remote_version() {
   local dependency=$1
 
   local version
-  version=$("${manager}_get_remote_version" "$dependency")
+  version=$(core.package.remote_version "$manager" "$dependency" false)
   ! helpers.is_set "$version" && version="NONE"
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
@@ -92,15 +94,15 @@ command.status() {
 
   [ -p "$FIFO" ] && rm "$FIFO"
 
-  command.status.get_manager_version "$manager" &
+  command.status.manager.version "$manager" &
 
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! helpers.is_set "$dependency" && continue
+    helpers.is_set "$dependency" || continue
 
-    command.status.get_local_version  "$dependency" &
-    command.status.get_remote_version "$dependency" &
+    command.status.package.local_version  "$dependency" &
+    command.status.package.remote_version "$dependency" &
 
     i=$((i + 1))
   done < <(core.csv.get "$manager")

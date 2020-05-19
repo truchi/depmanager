@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-SYSTEM_MANAGERS=(apt yum pacman)
+SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
@@ -9,11 +9,42 @@ QUIET=false
 YES=false
 SIMULATE=false
 
+declare -A __cache
 declare -A CSVS
-declare -A __cache_core_manager_exists
-declare -A __cache_core_csv_exists
-declare -A __cache_core_csv_get
+declare -A DEFAULTS
+DEFAULTS[dir]="$HOME/.config/depmanager"
+for manager in "${MANAGERS[@]}"; do
+  DEFAULTS[$manager]="$manager.csv"
+done
 
+DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_CACHE_DIR"
+
+if [ -t 1 ]; then
+  NO_COLOR=$(tput sgr0)
+  BOLD=$(tput bold)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAGENTA=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  WHITE=$(tput setaf 7)
+fi
+
+SYSTEM_MANAGERS=(apt)
+NON_SYSTEM_MANAGERS=(node rust)
+MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
+
+SYSTEM_MANAGER=
+COMMAND=
+QUIET=false
+YES=false
+SIMULATE=false
+
+declare -A __cache
+declare -A CSVS
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
 for manager in "${MANAGERS[@]}"; do
@@ -50,6 +81,48 @@ helpers.url_exists() {
 
 helpers.command_exists() {
   command -v "$1" >/dev/null 2>&1
+}
+
+helpers.is_subshell() {
+  [ "$$" -ne "$BASHPID" ]
+}
+
+helpers.cache() {
+  local args=("$@")
+  local cache_key="$1"
+  local read_cache="$2"
+  local write_cache="$3"
+  local cmd="$4"
+
+  local cache_string_key="__${cache_key}__string"
+  local cache_code_key="__${cache_key}__code"
+  local string
+  local code
+
+  if $read_cache && helpers.is_set "${__cache[$cache_key]}"; then
+    string="${__cache[$cache_string_key]}"
+    code=${__cache[$cache_code_key]}
+  else
+    args=("${args[@]:4}")
+
+    string=$($cmd "${args[@]}")
+    code="$?"
+
+    if $write_cache; then
+      if helpers.is_subshell; then
+        echo "HELPERS.CACHE CANNOT WRITE IN A SUBSHELL (key: $cache_key, cmd: $cmd)"
+        kill $$
+        exit
+      fi
+
+      __cache[$cache_key]="true"
+      __cache[$cache_string_key]="$string"
+      __cache[$cache_code_key]=$code
+    fi
+  fi
+
+  ! string.is_empty "$string" && echo "$string"
+  return $code
 }
 
 string.is_empty() {
@@ -96,7 +169,7 @@ string.equals() {
   [[ "$1" == "$2" ]]
 }
 
-string.substring() {
+string.slice() {
   local string="$1"
   local offset="$2"
   local length="$3"
@@ -269,7 +342,7 @@ print.system_info() {
     local version
     local levels=("info" "info")
     local messages=("${dir[@]}")
-    version=$("${SYSTEM_MANAGER}_version")
+    version=$(core.manager.version "$SYSTEM_MANAGER")
     messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
 
     table.print "" 3 levels[@] messages[@]
@@ -412,7 +485,7 @@ table.get_column() {
   done
 }
 
-SYSTEM_MANAGERS=(apt yum pacman)
+SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
@@ -422,11 +495,8 @@ QUIET=false
 YES=false
 SIMULATE=false
 
+declare -A __cache
 declare -A CSVS
-declare -A __cache_core_manager_exists
-declare -A __cache_core_csv_exists
-declare -A __cache_core_csv_get
-
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
 for manager in "${MANAGERS[@]}"; do
@@ -486,21 +556,24 @@ core.csv.resolve() {
 core.csv.exists() {
   local manager="$1"
   local read_cache="$2"
+
+  if string.is_empty "$read_cache"; then
+    read_cache=true
+  fi
+
   local file
   file=$(core.csv.path "$manager")
 
-  if $read_cache && helpers.is_set "${__cache_core_csv_exists[$manager]}";then
-    "${__cache_core_csv_exists[$manager]}"
-    return
+  local cmd
+  if string.is_url "$file"; then cmd="helpers.url_exists $file"
+  else                           cmd="helpers.file_exists $file"
   fi
 
-  if (string.is_url "$file" && helpers.url_exists "$file") || helpers.file_exists "$file"; then
-    __cache_core_csv_exists[$manager]=true
-    true
-  else
-    __cache_core_csv_exists[$manager]=false
-    false
-  fi
+  helpers.cache \
+    "core_csv_exists__$file" \
+    "$read_cache" \
+    true \
+    "$cmd"
 }
 
 core.csv.get() {
@@ -508,20 +581,19 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  if helpers.is_set "${__cache_core_csv_get[$manager]}";then
-    echo "${__cache_core_csv_get[$manager]}"
-    return
-  fi
-
-  local csv
+  local cmd
   if string.is_url "$file"; then
-    csv=$(wget "$file")
+    cmd="wget $file"
   else
-    csv=$(cat "$file")
+    cmd="cat $file"
   fi
 
-  __cache_core_csv_get[$manager]="$csv"
-  echo "$csv"
+
+  helpers.cache \
+    "core_csv_get__$file" \
+    true \
+    true \
+    "$cmd"
 }
 
 core.csv.is_empty() {
@@ -541,26 +613,10 @@ core.manager.system() {
   for manager in "${SYSTEM_MANAGERS[@]}"; do
     if core.manager.exists "$manager"; then
       SYSTEM_MANAGER="$manager"
+      core.manager.version "$SYSTEM_MANAGER" > /dev/null
       return
     fi
   done
-}
-
-core.manager.exists() {
-  local manager="$1"
-
-  if helpers.is_set "${__cache_core_manager_exists[$manager]}"; then
-    "${__cache_core_manager_exists[$manager]}"
-    return
-  fi
-
-  if helpers.command_exists "${manager}_detect" && "${manager}_detect"; then
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=true
-    true
-  else
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=false
-    false
-  fi
 }
 
 core.manager.is_system() {
@@ -568,18 +624,88 @@ core.manager.is_system() {
 }
 
 core.manager.is_bypassed() {
-  [[ "${CSVS[$1]}" == false ]]
+  [[ $(core.csv.path "$1") == false ]]
 }
 
-apt_detect() {
+
+core.manager.exists() {
+  local manager="$1"
+
+  helpers.cache \
+    "core_manager_exists__$manager" \
+    true \
+    "$(core.manager.is_system "$manager" && echo true || echo false)" \
+    "managers.${manager}.exists"
+}
+
+core.manager.version() {
+  local manager="$1"
+
+  helpers.cache \
+    "core_manager_version__$manager" \
+    true \
+    true \
+    "managers.${manager}.version"
+}
+
+
+core.package.is_installed() {
+  local manager="$1"
+  local package="$2"
+  local write_cache="$3"
+
+  if string.is_empty "$write_cache"; then
+    write_cache=true
+  fi
+
+  helpers.cache \
+    "core_package_is_installed__${manager}__${package}" \
+    true \
+    "$write_cache" \
+    "managers.${manager}.package.is_installed $package"
+}
+
+core.package.local_version() {
+  local manager="$1"
+  local package="$2"
+  local write_cache="$3"
+
+  if string.is_empty "$write_cache"; then
+    write_cache=true
+  fi
+
+  helpers.cache \
+    "core_package_local_version__${manager}__${package}" \
+    true \
+    "$write_cache" \
+    "managers.${manager}.package.local_version $package"
+}
+
+core.package.remote_version() {
+  local manager="$1"
+  local package="$2"
+  local write_cache="$3"
+
+  if string.is_empty "$write_cache"; then
+    write_cache=true
+  fi
+
+  helpers.cache \
+    "core_package_remote_version__${manager}__${package}" \
+    true \
+    "$write_cache" \
+    "managers.${manager}.package.remote_version $package"
+}
+
+managers.apt.exists() {
   helpers.command_exists apt && helpers.command_exists apt-cache && helpers.command_exists dpkg
 }
 
-apt_version() {
+managers.apt.version() {
   apt --version
 }
 
-apt_is_installed() {
+managers.apt.package.is_installed() {
   local dependency=$1
   local list
   list=$(apt list --installed "$dependency" 2>/dev/null | sed 's/Listing...//')
@@ -588,23 +714,23 @@ apt_is_installed() {
 }
 
 
-apt_get_local_version() {
+managers.apt.package.local_version() {
   apt-cache policy "$1" | sed '2q;d' | sed 's/  Installed: \(.*\).*/\1/'
 }
 
-apt_get_remote_version() {
+managers.apt.package.remote_version() {
   apt-cache policy "$1" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
 }
 
-node_detect() {
+managers.node.exists() {
   helpers.command_exists npm
 }
 
-node_version() {
+managers.node.version() {
   node --version
 }
 
-node_is_installed() {
+managers.node.package.is_installed() {
   local dependency=$1
   local list
   list=$(npm list --global --depth 0 "$dependency")
@@ -612,11 +738,11 @@ node_is_installed() {
   echo "$list" | grep "── $dependency@" >/dev/null 2>&1
 }
 
-node_get_local_version() {
+managers.node.package.local_version() {
   npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── .*@//'
 }
 
-node_get_remote_version() {
+managers.node.package.remote_version() {
   npm view "$1" version
 }
 
@@ -721,31 +847,33 @@ command.status.update_table() {
   table.print "$title" headers[@] levels[@] messages[@]
 }
 
-command.status.get_manager_version() {
+command.status.manager.version() {
   local manager=$1
 
   local version
-  version=$("${manager}_version")
+  version=$(core.manager.version "$manager")
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-command.status.get_local_version() {
+command.status.package.local_version() {
   local dependency=$1
 
   local version="NONE"
-  "${manager}_is_installed" "$dependency" && version=$("${manager}_get_local_version" "$dependency")
+  if core.package.is_installed "$manager" "$dependency" false; then
+    version=$(core.package.local_version "$manager" "$dependency" false)
+  fi
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
   echo "${dependency}_local_version,$version" >"$FIFO"
 }
 
-command.status.get_remote_version() {
+command.status.package.remote_version() {
   local dependency=$1
 
   local version
-  version=$("${manager}_get_remote_version" "$dependency")
+  version=$(core.package.remote_version "$manager" "$dependency" false)
   ! helpers.is_set "$version" && version="NONE"
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
@@ -758,15 +886,15 @@ command.status() {
 
   [ -p "$FIFO" ] && rm "$FIFO"
 
-  command.status.get_manager_version "$manager" &
+  command.status.manager.version "$manager" &
 
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! helpers.is_set "$dependency" && continue
+    helpers.is_set "$dependency" || continue
 
-    command.status.get_local_version  "$dependency" &
-    command.status.get_remote_version "$dependency" &
+    command.status.package.local_version  "$dependency" &
+    command.status.package.remote_version "$dependency" &
 
     i=$((i + 1))
   done < <(core.csv.get "$manager")
@@ -802,17 +930,20 @@ command.install() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    local installed=false
-    local local_version="NONE"
-    local remote_version
-      remote_version=$("${manager}_get_remote_version" "$dependency")
-    local up_to_date
+    helpers.is_set "$dependency" || continue
 
+    local remote_version
+    core.package.remote_version "$manager" "$dependency" > /dev/null
+    remote_version=$(core.package.remote_version "$manager" "$dependency")
     ! helpers.is_set "$remote_version" && remote_version="NONE"
 
-    if "${manager}_is_installed" "$dependency"; then
+    local installed=false
+    local local_version="NONE"
+    local up_to_date
+    if core.package.is_installed "$manager" "$dependency"; then
       installed=true
-      local_version=$("${manager}_get_local_version" "$dependency")
+      core.package.local_version "$manager" "$dependency" > /dev/null
+      local_version=$(core.package.local_version "$manager" "$dependency")
       up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 
@@ -865,15 +996,15 @@ main.parse_args() {
   while [[ $# -gt 1 ]]; do
     case "$2" in
       -a|--apt)
-        CSVS["apt"]="$3"; shift; shift;;
+        CSVS[apt]="$3"; shift; shift;;
       -y|--yum)
-        CSVS["yum"]="$3"; shift; shift;;
+        CSVS[yum]="$3"; shift; shift;;
       -p|--pacman)
-        CSVS["pacman"]="$3"; shift; shift;;
+        CSVS[pacman]="$3"; shift; shift;;
       -n|--node)
-        CSVS["node"]="$3"; shift; shift;;
+        CSVS[node]="$3"; shift; shift;;
       -r|--rust)
-        CSVS["rust"]="$3"; shift; shift;;
+        CSVS[rust]="$3"; shift; shift;;
       -Q|--quiet)
         QUIET=true; shift;;
       -Y|--yes)
@@ -888,7 +1019,7 @@ main.parse_args() {
 
         local flags
         local non_flags
-        flags=$(string.substring "$2" 1)
+        flags=$(string.slice "$2" 1)
         non_flags=$(string.replace "$flags" "[QYS]")
 
         string.contains "$flags" "Q" && QUIET=true
@@ -926,6 +1057,9 @@ main.run() {
       print.warning "${BOLD}$manager${NO_COLOR} not found"
       continue
     fi
+
+    core.manager.version "$manager" > /dev/null
+    core.csv.get         "$manager" > /dev/null
 
     if core.csv.is_empty "$manager"; then
       print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"

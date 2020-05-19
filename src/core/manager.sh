@@ -13,32 +13,11 @@ core.manager.system() {
   for manager in "${SYSTEM_MANAGERS[@]}"; do
     if core.manager.exists "$manager"; then
       SYSTEM_MANAGER="$manager"
+      # Init cache for version
+      core.manager.version "$SYSTEM_MANAGER" > /dev/null
       return
     fi
   done
-}
-
-#
-# Returns true if the manager is found on the system, false otherwise
-# With cache (system managers only)
-#
-core.manager.exists() {
-  local manager="$1"
-
-  # If already detected, do not try to detect again
-  if helpers.is_set "${__cache_core_manager_exists[$manager]}"; then
-    "${__cache_core_manager_exists[$manager]}"
-    return
-  fi
-
-  # Detection
-  if helpers.command_exists "${manager}_detect" && "${manager}_detect"; then
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=true
-    true
-  else
-    core.manager.is_system "$manager" && __cache_core_manager_exists[$manager]=false
-    false
-  fi
 }
 
 #
@@ -52,6 +31,38 @@ core.manager.is_system() {
 # Returns true if manager $1 is by-passed
 #
 core.manager.is_bypassed() {
-  [[ "${CSVS[$1]}" == false ]]
+  [[ $(core.csv.path "$1") == false ]]
+}
+
+###############################################################
+# Functions below cache corresponding functions in managers/ #
+###############################################################
+
+#
+# Returns true if manager $1 is found on the system, false otherwise
+# With cache (system managers only)
+#
+core.manager.exists() {
+  local manager="$1"
+
+  helpers.cache \
+    "core_manager_exists__$manager" \
+    true \
+    "$(core.manager.is_system "$manager" && echo true || echo false)" \
+    "managers.${manager}.exists"
+}
+
+#
+# Returns manager $1 version
+# With cache
+#
+core.manager.version() {
+  local manager="$1"
+
+  helpers.cache \
+    "core_manager_version__$manager" \
+    true \
+    true \
+    "managers.${manager}.version"
 }
 

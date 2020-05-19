@@ -41,23 +41,24 @@ core.csv.resolve() {
 core.csv.exists() {
   local manager="$1"
   local read_cache="$2"
+
+  if string.is_empty "$read_cache"; then
+    read_cache=true
+  fi
+
   local file
   file=$(core.csv.path "$manager")
 
-  # If already found, do not try to find again
-  if $read_cache && helpers.is_set "${__cache_core_csv_exists[$manager]}";then
-    "${__cache_core_csv_exists[$manager]}"
-    return
+  local cmd
+  if string.is_url "$file"; then cmd="helpers.url_exists $file"
+  else                           cmd="helpers.file_exists $file"
   fi
 
-  # Check for existence of file/url
-  if (string.is_url "$file" && helpers.url_exists "$file") || helpers.file_exists "$file"; then
-    __cache_core_csv_exists[$manager]=true
-    true
-  else
-    __cache_core_csv_exists[$manager]=false
-    false
-  fi
+  helpers.cache \
+    "core_csv_exists__$file" \
+    "$read_cache" \
+    true \
+    "$cmd"
 }
 
 #
@@ -69,22 +70,20 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  # If already read, return from cache
-  if helpers.is_set "${__cache_core_csv_get[$manager]}";then
-    echo "${__cache_core_csv_get[$manager]}"
-    return
-  fi
-
-  # Read file/url
-  local csv
+  local cmd
   if string.is_url "$file"; then
-    csv=$(wget "$file")
+    cmd="wget $file"
   else
-    csv=$(cat "$file")
+    cmd="cat $file"
   fi
 
-  __cache_core_csv_get[$manager]="$csv"
-  echo "$csv"
+  # cmd+=" | sed '/^[[:space:]]*$/d'"
+
+  helpers.cache \
+    "core_csv_get__$file" \
+    true \
+    true \
+    "$cmd"
 }
 
 #
@@ -96,6 +95,7 @@ core.csv.is_empty() {
 
   # Count non-empty lines
   while IFS=, read -ra line; do
+    # TODO should account whitespaces as empty lines
     helpers.is_set "${line[0]}" && i=$((i + 1))
   done < <(core.csv.get "$manager")
 

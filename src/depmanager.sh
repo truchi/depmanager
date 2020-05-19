@@ -19,6 +19,8 @@
 . ""
 # shellcheck source=core/manager.sh
 . ""
+# shellcheck source=core/package.sh
+. ""
 # shellcheck source=managers/apt.sh
 . ""
 # shellcheck source=managers/node.sh
@@ -94,7 +96,7 @@ main.parse_args() {
 
         local flags
         local non_flags
-        flags=$(string.substring "$2" 1)
+        flags=$(string.slice "$2" 1)
         non_flags=$(string.replace "$flags" "[QYS]")
 
         string.contains "$flags" "Q" && QUIET=true
@@ -139,6 +141,10 @@ main.run() {
       print.warning "${BOLD}$manager${NO_COLOR} not found"
       continue
     fi
+
+    # Write caches
+    core.manager.version "$manager" > /dev/null
+    core.csv.get         "$manager" > /dev/null
 
     # Run command for manager if CSV contains data,
     # or print warning

@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-SYSTEM_MANAGERS=(apt yum pacman)
+SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(node rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
@@ -10,11 +10,8 @@ QUIET=false
 YES=false
 SIMULATE=false
 
+declare -A __cache
 declare -A CSVS
-declare -A __cache_core_manager_exists
-declare -A __cache_core_csv_exists
-declare -A __cache_core_csv_get
-
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
 for manager in "${MANAGERS[@]}"; do

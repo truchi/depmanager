@@ -8,17 +8,20 @@ command.install() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    local installed=false
-    local local_version="NONE"
-    local remote_version
-      remote_version=$("${manager}_get_remote_version" "$dependency")
-    local up_to_date
+    helpers.is_set "$dependency" || continue
 
+    local remote_version
+    core.package.remote_version "$manager" "$dependency" > /dev/null
+    remote_version=$(core.package.remote_version "$manager" "$dependency")
     ! helpers.is_set "$remote_version" && remote_version="NONE"
 
-    if "${manager}_is_installed" "$dependency"; then
+    local installed=false
+    local local_version="NONE"
+    local up_to_date
+    if core.package.is_installed "$manager" "$dependency"; then
       installed=true
-      local_version=$("${manager}_get_local_version" "$dependency")
+      core.package.local_version "$manager" "$dependency" > /dev/null
+      local_version=$(core.package.local_version "$manager" "$dependency")
       up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 

@@ -116,7 +116,7 @@ print.system_info() {
     local version
     local levels=("info" "info")
     local messages=("${dir[@]}")
-    version=$("${SYSTEM_MANAGER}_version")
+    version=$(core.manager.version "$SYSTEM_MANAGER")
     messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
 
     table.print "" 3 levels[@] messages[@]
