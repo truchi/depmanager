@@ -375,24 +375,29 @@ print.confirm() {
   $YES && return
 
   # Prompt confirmation message
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} ${YELLOW}(Y)${NO_COLOR} " -n 1 -r
+  # read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR}) " -n 1 -r
+  local reply
+  reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
 
   # Carriage return if user did not press enter
-  [[ ! "$REPLY" =~ ^$ ]] && echo
+  [[ ! "$reply" =~ ^$ ]] && echo
 
   # Accepts <Enter>, Y or y
-  [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+  [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]
 }
 
 print.input() {
+  local n="$1"
+  local message="$2"
+
   # Prompt input
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $* " -r
+  if ((n == 0)); then
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -r
+  else
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -n "$n" -r
+  fi
 
   echo "$REPLY"
-}
-
-print.choice() {
-  echo "print choice ..."
 }
 
 print.version() {
@@ -995,7 +1000,7 @@ command.interactive() {
         fi
       fi
 
-      path=$(print.input "CSV (${color}$default_path${NO_COLOR}):")
+      path=$(print.input 0 "CSV (${color}$default_path${NO_COLOR}):")
       [[ "$path" =~ ^$ ]] && path="$default_path"
       CSVS[$manager]=$path
 
@@ -1004,7 +1009,29 @@ command.interactive() {
     done
   done
 
-  # TODO ask for action
+  print.separator
+
+  # Ask for command
+  local message="${BOLD}Command?${NO_COLOR} "
+  message+="(${BOLD}${YELLOW}S${NO_COLOR}tatus/"
+  message+="${BOLD}${YELLOW}i${NO_COLOR}nstall/"
+  message+="${BOLD}${YELLOW}u${NO_COLOR}pdate)"
+
+  local cmd
+  cmd=$(print.input 1 "$message")
+
+  if   [[ "$cmd" =~ ^[i]$ ]]; then COMMAND="install"
+  elif [[ "$cmd" =~ ^[u]$ ]]; then COMMAND="update"
+  else                             COMMAND="status"
+  fi
+
+  # Carriage return if user did not press enter
+  [[ ! "$cmd" =~ ^$ ]] && echo
+
+  # Ask for simulate
+  if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
+    SIMULATE=true
+  fi
 }
 
 command.status.update_table() {

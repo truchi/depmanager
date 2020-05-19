@@ -38,24 +38,29 @@ print.confirm() {
   $YES && return
 
   # Prompt confirmation message
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} ${YELLOW}(Y)${NO_COLOR} " -n 1 -r
+  # read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR}) " -n 1 -r
+  local reply
+  reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
 
   # Carriage return if user did not press enter
-  [[ ! "$REPLY" =~ ^$ ]] && echo
+  [[ ! "$reply" =~ ^$ ]] && echo
 
   # Accepts <Enter>, Y or y
-  [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+  [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]
 }
 
 print.input() {
+  local n="$1"
+  local message="$2"
+
   # Prompt input
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $* " -r
+  if ((n == 0)); then
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -r
+  else
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -n "$n" -r
+  fi
 
   echo "$REPLY"
-}
-
-print.choice() {
-  echo "print choice ..."
 }
 
 print.version() {

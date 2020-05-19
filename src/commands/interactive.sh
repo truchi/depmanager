@@ -35,7 +35,7 @@ command.interactive() {
         fi
       fi
 
-      path=$(print.input "CSV (${color}$default_path${NO_COLOR}):")
+      path=$(print.input 0 "CSV (${color}$default_path${NO_COLOR}):")
       [[ "$path" =~ ^$ ]] && path="$default_path"
       CSVS[$manager]=$path
 
@@ -44,5 +44,28 @@ command.interactive() {
     done
   done
 
-  # TODO ask for action
+  print.separator
+
+  # Ask for command
+  local message="${BOLD}Command?${NO_COLOR} "
+  message+="(${BOLD}${YELLOW}S${NO_COLOR}tatus/"
+  message+="${BOLD}${YELLOW}i${NO_COLOR}nstall/"
+  message+="${BOLD}${YELLOW}u${NO_COLOR}pdate)"
+
+  local cmd
+  cmd=$(print.input 1 "$message")
+
+  if   [[ "$cmd" =~ ^[i]$ ]]; then COMMAND="install"
+  elif [[ "$cmd" =~ ^[u]$ ]]; then COMMAND="update"
+  else                             COMMAND="status"
+  fi
+
+  # Carriage return if user did not press enter
+  [[ ! "$cmd" =~ ^$ ]] && echo
+
+  # Ask for simulate
+  if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
+    SIMULATE=true
+  fi
 }
+

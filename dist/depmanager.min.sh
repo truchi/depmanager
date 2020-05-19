@@ -294,21 +294,25 @@ print.custom() {
 print.confirm() {
   $YES && return
 
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} ${YELLOW}(Y)${NO_COLOR} " -n 1 -r
+  local reply
+  reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
 
-  [[ ! "$REPLY" =~ ^$ ]] && echo
+  [[ ! "$reply" =~ ^$ ]] && echo
 
-  [[ "$REPLY" =~ ^[Yy]$ || "$REPLY" =~ ^$ ]]
+  [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]
 }
 
 print.input() {
-  read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $* " -r
+  local n="$1"
+  local message="$2"
+
+  if ((n == 0)); then
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -r
+  else
+    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -n "$n" -r
+  fi
 
   echo "$REPLY"
-}
-
-print.choice() {
-  echo "print choice ..."
 }
 
 print.version() {
@@ -806,7 +810,7 @@ command.interactive() {
         fi
       fi
 
-      path=$(print.input "CSV (${color}$default_path${NO_COLOR}):")
+      path=$(print.input 0 "CSV (${color}$default_path${NO_COLOR}):")
       [[ "$path" =~ ^$ ]] && path="$default_path"
       CSVS[$manager]=$path
 
@@ -815,6 +819,26 @@ command.interactive() {
     done
   done
 
+  print.separator
+
+  local message="${BOLD}Command?${NO_COLOR} "
+  message+="(${BOLD}${YELLOW}S${NO_COLOR}tatus/"
+  message+="${BOLD}${YELLOW}i${NO_COLOR}nstall/"
+  message+="${BOLD}${YELLOW}u${NO_COLOR}pdate)"
+
+  local cmd
+  cmd=$(print.input 1 "$message")
+
+  if   [[ "$cmd" =~ ^[i]$ ]]; then COMMAND="install"
+  elif [[ "$cmd" =~ ^[u]$ ]]; then COMMAND="update"
+  else                             COMMAND="status"
+  fi
+
+  [[ ! "$cmd" =~ ^$ ]] && echo
+
+  if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
+    SIMULATE=true
+  fi
 }
 
 command.status.update_table() {
