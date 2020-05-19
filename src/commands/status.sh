@@ -8,12 +8,6 @@ command.status.update_table() {
   local levels=()
   local messages=()
 
-  # Clear screen
-  for i in $(seq 1 "$remove"); do
-    tput cuu1
-    tput el
-  done
-
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
@@ -55,6 +49,11 @@ command.status.update_table() {
   else
     title="${BLUE}${BOLD}$manager${NO_COLOR} (...)"
   fi
+
+  # Clear screen
+  for i in $(seq 1 "$remove"); do
+    tput cuu1
+  done
 
   table.print "$title" headers[@] levels[@] messages[@]
 }
