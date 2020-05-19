@@ -18,7 +18,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
-DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
