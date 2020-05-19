@@ -5,9 +5,12 @@ command.install() {
   local file
   file=$(core.csv.path "$manager")
 
+  print.info "${BOLD}$manager${NO_COLOR}"
+
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
+    print.info "$dependency"
 
     local remote_version
     core.package.remote_version "$manager" "$dependency" > /dev/null
@@ -33,5 +36,5 @@ command.install() {
     fi
 
     i=$((i + 1))
-  done < "$file"
+  done < <(core.csv.get "$manager")
 }

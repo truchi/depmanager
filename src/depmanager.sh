@@ -128,13 +128,15 @@ main.run() {
   length=$(array.length managers[@])
 
   # For each managers
+  local j=0
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
     # Pass if is ignored or CSV not found
     core.manager.is_ignored "$manager" && continue
     core.csv.exists         "$manager" || continue
-    [[ $i != 0 ]] && print.separator
+    (( j != 0 )) && print.separator
+    j=$((j + 1))
 
     # Pass with warning if manager is not found
     if ! core.manager.exists "$manager"; then

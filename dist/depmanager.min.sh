@@ -1016,9 +1016,12 @@ command.install() {
   local file
   file=$(core.csv.path "$manager")
 
+  print.info "${BOLD}$manager${NO_COLOR}"
+
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
+    print.info "$dependency"
 
     local remote_version
     core.package.remote_version "$manager" "$dependency" > /dev/null
@@ -1044,7 +1047,7 @@ command.install() {
     fi
 
     i=$((i + 1))
-  done < "$file"
+  done < <(core.csv.get "$manager")
 }
 
 command.update() {
@@ -1134,12 +1137,14 @@ main.run() {
   local length
   length=$(array.length managers[@])
 
+  local j=0
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
     core.manager.is_ignored "$manager" && continue
     core.csv.exists         "$manager" || continue
-    [[ $i != 0 ]] && print.separator
+    (( j != 0 )) && print.separator
+    j=$((j + 1))
 
     if ! core.manager.exists "$manager"; then
       print.warning "${BOLD}$manager${NO_COLOR} not found"
