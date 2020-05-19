@@ -30,8 +30,8 @@ core.manager.is_system() {
 #
 # Returns true if manager $1 is by-passed
 #
-core.manager.is_bypassed() {
-  [[ $(core.csv.path "$1") == false ]]
+core.manager.is_ignored() {
+  [[ $(core.csv.path "$1") == "ignore" ]]
 }
 
 ###############################################################

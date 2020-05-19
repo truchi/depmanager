@@ -131,9 +131,9 @@ main.run() {
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
-    # Pass if is bypassed or CSV not found
-    core.manager.is_bypassed "$manager" && continue
-    core.csv.exists          "$manager" || continue
+    # Pass if is ignored or CSV not found
+    core.manager.is_ignored "$manager" && continue
+    core.csv.exists         "$manager" || continue
     [[ $i != 0 ]] && print.separator
 
     # Pass with warning if manager is not found

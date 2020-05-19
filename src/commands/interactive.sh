@@ -13,30 +13,30 @@ command.interactive() {
     print.info "${BOLD}$manager${NO_COLOR}"
 
     local path
-    local is_bypassed
+    local is_ignored
     local exists
     local default_path
     local default_color
     path=$(core.csv.path "$manager")
-    is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+    is_ignored=$(core.manager.is_ignored "$manager" && echo true || echo false)
     exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
-    # Default value for prompt is the path if exists, false (bybpass otherwise)
-    default_path=false
+    # Default value for prompt is the path if exists, ignore
+    default_path="ignore"
     default_color="${BLUE}"
-    if ! $is_bypassed && $exists; then
+    if ! $is_ignored && $exists; then
       default_color="$GREEN"
       default_path="$path"
     fi
 
     local first=true
-    while $first || (! $is_bypassed && ! $exists); do
+    while $first || (! $is_ignored && ! $exists); do
       local message
       local color
       local new_path
 
       # On the first run, print error if supplied path does not exists
-      if $first && ! $is_bypassed && ! $exists; then
+      if $first && ! $is_ignored && ! $exists; then
         print.error "${RED}$path${NO_COLOR} not found"
       fi
 
@@ -48,13 +48,13 @@ command.interactive() {
 
       # Update
       path=$(core.csv.path "$manager")
-      is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+      is_ignored=$(core.manager.is_ignored "$manager" && echo true || echo false)
       exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
       # Redraw
       tput cuu1
       tput el
-      if $is_bypassed; then
+      if $is_ignored; then
         print.info "$message ${BLUE}$path${NO_COLOR}"
       elif $exists; then
         print.success "$message ${GREEN}$path${NO_COLOR}"

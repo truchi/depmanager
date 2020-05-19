@@ -358,27 +358,27 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  I${WHITE},${NO_COLOR} interactive                 ${WHITE}Runs in interactive mode${NO_COLOR}
-  s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
-  i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
-  u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
+  I${WHITE},${NO_COLOR} interactive                  ${WHITE}Runs in interactive mode${NO_COLOR}
+  s${WHITE},${NO_COLOR} status                       ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
+  i${WHITE},${NO_COLOR} install                      ${WHITE}Installs packages in the CSV files${NO_COLOR}
+  u${WHITE},${NO_COLOR} update                       ${WHITE}Updates packages in the CSV files${NO_COLOR}
 
 ${BOLD}${BLUE}Options:${NO_COLOR}
-  -a${WHITE},${NO_COLOR} --apt    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -y${WHITE},${NO_COLOR} --yum    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --npm    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -r${WHITE},${NO_COLOR} --rust   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -a${WHITE},${NO_COLOR} --apt    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -y${WHITE},${NO_COLOR} --yum    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -p${WHITE},${NO_COLOR} --pacman <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --npm    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -r${WHITE},${NO_COLOR} --rust   <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Flags:${NO_COLOR}
-  -Q${WHITE},${NO_COLOR} --quiet                    ${WHITE}Blah${NO_COLOR}
-  -Y${WHITE},${NO_COLOR} --yes                      ${WHITE}Blah${NO_COLOR}
-  -S${WHITE},${NO_COLOR} --simulate                 ${WHITE}Blah${NO_COLOR}
+  -Q${WHITE},${NO_COLOR} --quiet                     ${WHITE}Blah${NO_COLOR}
+  -Y${WHITE},${NO_COLOR} --yes                       ${WHITE}Blah${NO_COLOR}
+  -S${WHITE},${NO_COLOR} --simulate                  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}                   ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Website${NO_COLOR}                      ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Documentation${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                    ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Website${NO_COLOR}                       ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Documentation${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 
@@ -411,14 +411,14 @@ print.csvs_info() {
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.manager.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.csv.exists          "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
-    else                                           messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+    if   core.manager.is_ignored "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
+    elif core.csv.exists         "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
+    else                                          messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
     fi
 
-    if   core.manager.is_bypassed "$manager"; then  levels+=("info")
-    elif core.csv.exists          "$manager"; then  levels+=("success")
-    else                                            levels+=("warning")
+    if   core.manager.is_ignored "$manager"; then  levels+=("info")
+    elif core.csv.exists         "$manager"; then  levels+=("success")
+    else                                           levels+=("warning")
     fi
 
     i=$((i + 1))
@@ -587,7 +587,7 @@ core.csv.path() {
   local file="${CSVS[$1]}"
 
   if helpers.is_set "$file"; then
-    if [[ "$file" != false ]]; then
+    if [[ "$file" != "ignore" ]]; then
       file="${file/#\~/$HOME}"
 
       ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
@@ -604,7 +604,7 @@ core.csv.exists() {
   local manager="$1"
   local cache="$2"
 
-  if core.manager.is_bypassed "$manager"; then
+  if core.manager.is_ignored "$manager"; then
     true
     return
   fi
@@ -673,8 +673,8 @@ core.manager.is_system() {
   array.includes "$1" SYSTEM_MANAGERS[@]
 }
 
-core.manager.is_bypassed() {
-  [[ $(core.csv.path "$1") == false ]]
+core.manager.is_ignored() {
+  [[ $(core.csv.path "$1") == "ignore" ]]
 }
 
 
@@ -809,28 +809,28 @@ command.interactive() {
     print.info "${BOLD}$manager${NO_COLOR}"
 
     local path
-    local is_bypassed
+    local is_ignored
     local exists
     local default_path
     local default_color
     path=$(core.csv.path "$manager")
-    is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+    is_ignored=$(core.manager.is_ignored "$manager" && echo true || echo false)
     exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
-    default_path=false
+    default_path="ignore"
     default_color="${BLUE}"
-    if ! $is_bypassed && $exists; then
+    if ! $is_ignored && $exists; then
       default_color="$GREEN"
       default_path="$path"
     fi
 
     local first=true
-    while $first || (! $is_bypassed && ! $exists); do
+    while $first || (! $is_ignored && ! $exists); do
       local message
       local color
       local new_path
 
-      if $first && ! $is_bypassed && ! $exists; then
+      if $first && ! $is_ignored && ! $exists; then
         print.error "${RED}$path${NO_COLOR} not found"
       fi
 
@@ -840,12 +840,12 @@ command.interactive() {
       CSVS[$manager]="$new_path"
 
       path=$(core.csv.path "$manager")
-      is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+      is_ignored=$(core.manager.is_ignored "$manager" && echo true || echo false)
       exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
       tput cuu1
       tput el
-      if $is_bypassed; then
+      if $is_ignored; then
         print.info "$message ${BLUE}$path${NO_COLOR}"
       elif $exists; then
         print.success "$message ${GREEN}$path${NO_COLOR}"
@@ -1137,8 +1137,8 @@ main.run() {
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
-    core.manager.is_bypassed "$manager" && continue
-    core.csv.exists          "$manager" || continue
+    core.manager.is_ignored "$manager" && continue
+    core.csv.exists         "$manager" || continue
     [[ $i != 0 ]] && print.separator
 
     if ! core.manager.exists "$manager"; then

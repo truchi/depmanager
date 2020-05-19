@@ -106,27 +106,27 @@ ${BOLD}${BLUE}Description:${NO_COLOR}
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  I${WHITE},${NO_COLOR} interactive                 ${WHITE}Runs in interactive mode${NO_COLOR}
-  s${WHITE},${NO_COLOR} status                      ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
-  i${WHITE},${NO_COLOR} install                     ${WHITE}Installs packages in the CSV files${NO_COLOR}
-  u${WHITE},${NO_COLOR} update                      ${WHITE}Updates packages in the CSV files${NO_COLOR}
+  I${WHITE},${NO_COLOR} interactive                  ${WHITE}Runs in interactive mode${NO_COLOR}
+  s${WHITE},${NO_COLOR} status                       ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
+  i${WHITE},${NO_COLOR} install                      ${WHITE}Installs packages in the CSV files${NO_COLOR}
+  u${WHITE},${NO_COLOR} update                       ${WHITE}Updates packages in the CSV files${NO_COLOR}
 
 ${BOLD}${BLUE}Options:${NO_COLOR}
-  -a${WHITE},${NO_COLOR} --apt    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -y${WHITE},${NO_COLOR} --yum    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --npm    <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -r${WHITE},${NO_COLOR} --rust   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -a${WHITE},${NO_COLOR} --apt    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -y${WHITE},${NO_COLOR} --yum    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -p${WHITE},${NO_COLOR} --pacman <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --npm    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -r${WHITE},${NO_COLOR} --rust   <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Flags:${NO_COLOR}
-  -Q${WHITE},${NO_COLOR} --quiet                    ${WHITE}Blah${NO_COLOR}
-  -Y${WHITE},${NO_COLOR} --yes                      ${WHITE}Blah${NO_COLOR}
-  -S${WHITE},${NO_COLOR} --simulate                 ${WHITE}Blah${NO_COLOR}
+  -Q${WHITE},${NO_COLOR} --quiet                     ${WHITE}Blah${NO_COLOR}
+  -Y${WHITE},${NO_COLOR} --yes                       ${WHITE}Blah${NO_COLOR}
+  -S${WHITE},${NO_COLOR} --simulate                  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}                   ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Website${NO_COLOR}                      ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Documentation${NO_COLOR}                ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                    ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Website${NO_COLOR}                       ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Documentation${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 
@@ -160,14 +160,14 @@ print.csvs_info() {
     fi
 
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.manager.is_bypassed "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.csv.exists          "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
-    else                                           messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+    if   core.manager.is_ignored "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
+    elif core.csv.exists         "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
+    else                                          messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
     fi
 
-    if   core.manager.is_bypassed "$manager"; then  levels+=("info")
-    elif core.csv.exists          "$manager"; then  levels+=("success")
-    else                                            levels+=("warning")
+    if   core.manager.is_ignored "$manager"; then  levels+=("info")
+    elif core.csv.exists         "$manager"; then  levels+=("success")
+    else                                           levels+=("warning")
     fi
 
     i=$((i + 1))

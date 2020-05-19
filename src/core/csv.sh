@@ -13,7 +13,7 @@ core.csv.path() {
 
   # If file is given in args
   if helpers.is_set "$file"; then
-    if [[ "$file" != false ]]; then
+    if [[ "$file" != "ignore" ]]; then
       # Expand ~
       file="${file/#\~/$HOME}"
 
@@ -37,8 +37,8 @@ core.csv.exists() {
   local manager="$1"
   local cache="$2"
 
-  # Do not worry about "false" values
-  if core.manager.is_bypassed "$manager"; then
+  # Do not worry about ignored
+  if core.manager.is_ignored "$manager"; then
     true
     return
   fi
