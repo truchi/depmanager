@@ -1087,7 +1087,11 @@ command.status.update_table() {
   local levels=()
   local messages=()
 
-  ((remove > 0)) && echo -e "$(tput cuu "$remove")"
+  # Clear screen
+  for i in $(seq 1 "$remove"); do
+    tput cuu1
+    tput el
+  done
 
   local i=1
   while IFS=, read -ra line; do
@@ -1175,14 +1179,14 @@ command.status() {
 
   command.status.manager.version "$manager" &
 
-  local i=0
+  local line_count=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
 
     command.status.package.local_version  "$dependency" &
     command.status.package.remote_version "$dependency" &
 
-    i=$((i + 1))
+    line_count=$((line_count + 1))
   done < <(core.csv.get "$manager")
 
   local redraw=false
@@ -1199,10 +1203,12 @@ command.status() {
     local array
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
-    "$redraw" && command.status.update_table "$manager" $((i + 3))
+
+    sleep 1s
+    "$redraw" && command.status.update_table "$manager" $((line_count + 2))
 
     j=$((j + 1))
-    (( j == $((i * 2 + 1)) )) && break
+    (( j == $((line_count * 2 + 1)) )) && break
   done <"$FIFO"
 
   ! "$redraw" && command.status.update_table "$manager" 0
@@ -1375,11 +1381,32 @@ main.run() {
   done
 }
 
+write_n() {
+  local n=$1
+  for i in $(seq 0 "$n"); do
+    echo "$2"
+  done
+}
+
+clear_n() {
+  local n=$1
+  for i in $(seq 0 "$n"); do
+    tput cuu1
+    tput el
+  done
+}
+
 #
 # Main
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # write_n 12 "aaaaaaaaa"
+  # sleep 1
+  # clear_n 10
+  # sleep 1
+  # write_n 12 "bbb"
+  # exit
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system
