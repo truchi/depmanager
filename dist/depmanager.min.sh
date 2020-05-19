@@ -299,7 +299,24 @@ print.confirm() {
 
   [[ ! "$reply" =~ ^$ ]] && echo
 
-  [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]
+  local confirmed=false
+  local answer="no"
+  if [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]; then
+    confirmed=true
+    answer="yes"
+  fi
+
+  tput cuu1
+  print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
+
+  $confirmed
+}
+
+print.fake.confirm() {
+  local message="$1"
+  local answer="$2"
+
+  print.fake.input "${BOLD}$message${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "$answer"
 }
 
 print.input() {
@@ -313,6 +330,13 @@ print.input() {
   fi
 
   echo "$REPLY"
+}
+
+print.fake.input() {
+  local message="$1"
+  local answer="$2"
+
+  echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
 }
 
 print.version() {
@@ -835,6 +859,9 @@ command.interactive() {
   fi
 
   [[ ! "$cmd" =~ ^$ ]] && echo
+
+  tput cuu1
+  print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
   if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
     SIMULATE=true

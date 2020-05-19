@@ -63,6 +63,10 @@ command.interactive() {
   # Carriage return if user did not press enter
   [[ ! "$cmd" =~ ^$ ]] && echo
 
+  # Redraw with answer
+  tput cuu1
+  print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
+
   # Ask for simulate
   if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
     SIMULATE=true

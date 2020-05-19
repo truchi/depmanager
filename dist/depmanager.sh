@@ -375,7 +375,6 @@ print.confirm() {
   $YES && return
 
   # Prompt confirmation message
-  # read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} ${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR}) " -n 1 -r
   local reply
   reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
 
@@ -383,7 +382,25 @@ print.confirm() {
   [[ ! "$reply" =~ ^$ ]] && echo
 
   # Accepts <Enter>, Y or y
-  [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]
+  local confirmed=false
+  local answer="no"
+  if [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]; then
+    confirmed=true
+    answer="yes"
+  fi
+
+  # Redraw with answer
+  tput cuu1
+  print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
+
+  $confirmed
+}
+
+print.fake.confirm() {
+  local message="$1"
+  local answer="$2"
+
+  print.fake.input "${BOLD}$message${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "$answer"
 }
 
 print.input() {
@@ -398,6 +415,13 @@ print.input() {
   fi
 
   echo "$REPLY"
+}
+
+print.fake.input() {
+  local message="$1"
+  local answer="$2"
+
+  echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
 }
 
 print.version() {
@@ -1027,6 +1051,10 @@ command.interactive() {
 
   # Carriage return if user did not press enter
   [[ ! "$cmd" =~ ^$ ]] && echo
+
+  # Redraw with answer
+  tput cuu1
+  print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
   # Ask for simulate
   if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
