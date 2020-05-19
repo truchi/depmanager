@@ -70,20 +70,17 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  local cmd
+  helpers.cache "core_csv_get__$file" true true "__core.csv.get" "$file"
+}
+
+__core.csv.get() {
+  local file="$1"
+
   if string.is_url "$file"; then
-    cmd="wget $file"
+    wget "$file" | helpers.sanitize_csv
   else
-    cmd="cat $file"
+    helpers.sanitize_csv < "$file"
   fi
-
-  # cmd+=" | sed '/^[[:space:]]*$/d'"
-
-  helpers.cache \
-    "core_csv_get__$file" \
-    true \
-    true \
-    "$cmd"
 }
 
 #

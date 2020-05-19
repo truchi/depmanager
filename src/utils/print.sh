@@ -92,7 +92,7 @@ ${BOLD}${BLUE}Options:${NO_COLOR}
   -a${WHITE},${NO_COLOR} --apt    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -y${WHITE},${NO_COLOR} --yum    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --node   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --npm    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -r${WHITE},${NO_COLOR} --rust   <path|url|false>  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Flags:${NO_COLOR}

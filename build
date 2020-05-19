@@ -146,9 +146,9 @@ function check_errors() {
     shellcheck_success=$(shellcheck -S error "$1" > /dev/null && echo true || echo false)
 
     if $shellcheck_success; then
-      echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$dest ${GREEN}has no errors${NO_COLOR}"
+      echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$1 ${GREEN}has no errors${NO_COLOR}"
     else
-      echo "${BOLD}${YELLOW}!${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$dest ${YELLOW}has some errors${NO_COLOR}"
+      echo "${BOLD}${YELLOW}!${NO_COLOR} ${BLUE}Shellcheck ${CYAN}$1 ${YELLOW}has some errors${NO_COLOR}"
     fi
   fi
 }

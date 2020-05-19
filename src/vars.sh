@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 SYSTEM_MANAGERS=(apt)
-NON_SYSTEM_MANAGERS=(node rust)
+NON_SYSTEM_MANAGERS=(npm rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 SYSTEM_MANAGER=

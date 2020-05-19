@@ -14,7 +14,7 @@
 #
 # # Usage
 #
-# $ depmanager check --directory ~/my/dir --node ~/my/node.csv
+# $ depmanager check --directory ~/my/dir --npm ~/my/npm.csv
 #
 # # Configuration
 #
@@ -22,7 +22,7 @@
 # Defaults to "$HOME/.config/depmanager"
 
 SYSTEM_MANAGERS=(apt)
-NON_SYSTEM_MANAGERS=(node rust)
+NON_SYSTEM_MANAGERS=(npm rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 SYSTEM_MANAGER=
@@ -39,7 +39,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
-DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
@@ -56,7 +56,7 @@ if [ -t 1 ]; then
 fi
 
 SYSTEM_MANAGERS=(apt)
-NON_SYSTEM_MANAGERS=(node rust)
+NON_SYSTEM_MANAGERS=(npm rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 SYSTEM_MANAGER=
@@ -73,7 +73,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
-DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
@@ -169,6 +169,42 @@ helpers.cache() {
   # Echo string and return code
   ! string.is_empty "$string" && echo "$string"
   return $code
+}
+
+#
+# Removes blanks and duplicates from CSV (stdin)
+#
+helpers.sanitize_csv() {
+  local lines=""
+  local packages=()
+
+  while read -ra line; do
+    # Remove whitespaces
+    line=$(sed 's/[[:space:]]*//g' <<< "${line[*]}")
+
+    # Ignore if empty
+    [[ $(string.length "$line") == 0 ]] && continue
+
+    # Read first column
+    local package
+    IFS=, read -ra package <<< "$line"
+    [[ $(string.length "$package") == 0 ]] && continue
+
+    # Ignore if already there
+    array.includes "$package" packages[@] && continue
+    packages+=("$package")
+
+    # Remove trailing comma
+    line=$(sed 's/,$//g' <<< "$line")
+
+    lines+="$line
+"
+  done
+
+  # Remove trailing newline
+  lines=$(sed 's/\s$//g' <<< "$lines")
+
+  echo "$lines"
 }
 
 string.is_empty() {
@@ -393,7 +429,7 @@ ${BOLD}${BLUE}Options:${NO_COLOR}
   -a${WHITE},${NO_COLOR} --apt    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -y${WHITE},${NO_COLOR} --yum    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -p${WHITE},${NO_COLOR} --pacman <path|url|false>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --node   <path|url|false>  ${WHITE}Blah${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --npm    <path|url|false>  ${WHITE}Blah${NO_COLOR}
   -r${WHITE},${NO_COLOR} --rust   <path|url|false>  ${WHITE}Blah${NO_COLOR}
 
 ${BOLD}${BLUE}Flags:${NO_COLOR}
@@ -563,7 +599,7 @@ table.get_column() {
 }
 
 SYSTEM_MANAGERS=(apt)
-NON_SYSTEM_MANAGERS=(node rust)
+NON_SYSTEM_MANAGERS=(npm rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")
 
 SYSTEM_MANAGER=
@@ -580,7 +616,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
-DEPMANAGER_CACHE_DIR="$HOME/.cache/depmanager"
+DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
@@ -687,20 +723,17 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  local cmd
+  helpers.cache "core_csv_get__$file" true true "__core.csv.get" "$file"
+}
+
+__core.csv.get() {
+  local file="$1"
+
   if string.is_url "$file"; then
-    cmd="wget $file"
+    wget "$file" | helpers.sanitize_csv
   else
-    cmd="cat $file"
+    helpers.sanitize_csv < "$file"
   fi
-
-  # cmd+=" | sed '/^[[:space:]]*$/d'"
-
-  helpers.cache \
-    "core_csv_get__$file" \
-    true \
-    true \
-    "$cmd"
 }
 
 #
@@ -889,23 +922,23 @@ managers.apt.package.remote_version() {
 }
 
 #
-# Returns true if node is found on the system, false otherwise
+# Returns true if npm is found on the system, false otherwise
 #
-managers.node.exists() {
+managers.npm.exists() {
   helpers.command_exists npm
 }
 
 #
-# Returns node version
+# Returns npm version
 #
-managers.node.version() {
-  node --version
+managers.npm.version() {
+  npm --version
 }
 
 #
 # Returns true if dependency $1 is installed, false otherwise
 #
-managers.node.package.is_installed() {
+managers.npm.package.is_installed() {
   local dependency=$1
   local list
   list=$(npm list --global --depth 0 "$dependency")
@@ -916,14 +949,14 @@ managers.node.package.is_installed() {
 #
 # Returns the local version of dependency $1
 #
-managers.node.package.local_version() {
+managers.npm.package.local_version() {
   npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── .*@//'
 }
 
 #
 # Returns the remote version of dependency $1
 #
-managers.node.package.remote_version() {
+managers.npm.package.remote_version() {
   npm view "$1" version
 }
 
@@ -1073,7 +1106,6 @@ command.status() {
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    helpers.is_set "$dependency" || continue
 
     command.status.package.local_version  "$dependency" &
     command.status.package.remote_version "$dependency" &
@@ -1112,7 +1144,6 @@ command.install() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    helpers.is_set "$dependency" || continue
 
     local remote_version
     core.package.remote_version "$manager" "$dependency" > /dev/null
@@ -1189,8 +1220,8 @@ main.parse_args() {
         CSVS[yum]="$3"; shift; shift;;
       -p|--pacman)
         CSVS[pacman]="$3"; shift; shift;;
-      -n|--node)
-        CSVS[node]="$3"; shift; shift;;
+      -n|--npm)
+        CSVS[npm]="$3"; shift; shift;;
       -r|--rust)
         CSVS[rust]="$3"; shift; shift;;
       -Q|--quiet)

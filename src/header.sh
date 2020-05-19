@@ -14,7 +14,7 @@
 #
 # # Usage
 #
-# $ depmanager check --directory ~/my/dir --node ~/my/node.csv
+# $ depmanager check --directory ~/my/dir --npm ~/my/npm.csv
 #
 # # Configuration
 #

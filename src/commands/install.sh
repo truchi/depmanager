@@ -8,7 +8,6 @@ command.install() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    helpers.is_set "$dependency" || continue
 
     local remote_version
     core.package.remote_version "$manager" "$dependency" > /dev/null

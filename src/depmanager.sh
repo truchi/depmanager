@@ -23,7 +23,7 @@
 . ""
 # shellcheck source=managers/apt.sh
 . ""
-# shellcheck source=managers/node.sh
+# shellcheck source=managers/npm.sh
 . ""
 # shellcheck source=commands/interactive.sh
 . ""
@@ -78,8 +78,8 @@ main.parse_args() {
         CSVS[yum]="$3"; shift; shift;;
       -p|--pacman)
         CSVS[pacman]="$3"; shift; shift;;
-      -n|--node)
-        CSVS[node]="$3"; shift; shift;;
+      -n|--npm)
+        CSVS[npm]="$3"; shift; shift;;
       -r|--rust)
         CSVS[rust]="$3"; shift; shift;;
       -Q|--quiet)

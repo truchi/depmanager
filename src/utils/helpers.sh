@@ -83,3 +83,39 @@ helpers.cache() {
   ! string.is_empty "$string" && echo "$string"
   return $code
 }
+
+#
+# Removes blanks and duplicates from CSV (stdin)
+#
+helpers.sanitize_csv() {
+  local lines=""
+  local packages=()
+
+  while read -ra line; do
+    # Remove whitespaces
+    line=$(sed 's/[[:space:]]*//g' <<< "${line[*]}")
+
+    # Ignore if empty
+    [[ $(string.length "$line") == 0 ]] && continue
+
+    # Read first column
+    local package
+    IFS=, read -ra package <<< "$line"
+    [[ $(string.length "$package") == 0 ]] && continue
+
+    # Ignore if already there
+    array.includes "$package" packages[@] && continue
+    packages+=("$package")
+
+    # Remove trailing comma
+    line=$(sed 's/,$//g' <<< "$line")
+
+    lines+="$line\n"
+  done
+
+  # Remove trailing newline
+  lines=$(sed 's/\s$//g' <<< "$lines")
+
+  echo "$lines"
+}
+

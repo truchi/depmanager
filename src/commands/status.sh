@@ -99,7 +99,6 @@ command.status() {
   local i=0
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    helpers.is_set "$dependency" || continue
 
     command.status.package.local_version  "$dependency" &
     command.status.package.remote_version "$dependency" &
