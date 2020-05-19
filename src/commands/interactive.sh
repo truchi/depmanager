@@ -12,34 +12,56 @@ command.interactive() {
     [[ $i != 0 ]] && print.separator
     print.info "${BOLD}$manager${NO_COLOR}"
 
-    local first=true
     local path
-    local default_path=false
-    local color="$BLUE"
+    local is_bypassed
+    local exists
+    local default_path
+    local default_color
+    path=$(core.csv.path "$manager")
+    is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+    exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
-    while true; do
-      if core.manager.is_bypassed "$manager"; then
-        default_path=false
-        color="$BLUE"
-      else
-        core.csv.resolve "$manager"
+    # Default value for prompt is the path if exists, false (bybpass otherwise)
+    default_path=false
+    default_color="${BLUE}"
+    if ! $is_bypassed && $exists; then
+      default_color="$GREEN"
+      default_path="$path"
+    fi
 
-        if core.csv.exists "$manager" false; then
-          ! $first && break
-          default_path=$(core.csv.path "$manager")
-          color="$GREEN"
-        else
-          print.warning "${YELLOW}$path${NO_COLOR} not found"
-          default_path=false
-          color="$BLUE"
-        fi
+    local first=true
+    while $first || (! $is_bypassed && ! $exists); do
+      local message
+      local color
+      local new_path
+
+      # On the first run, print error if supplied path does not exists
+      if $first && ! $is_bypassed && ! $exists; then
+        print.error "${RED}$path${NO_COLOR} not found"
       fi
 
-      path=$(print.input 0 "CSV (${color}$default_path${NO_COLOR}):")
-      [[ "$path" =~ ^$ ]] && path="$default_path"
-      CSVS[$manager]=$path
+      # Ask for path
+      message="CSV (${default_color}$default_path${NO_COLOR}):"
+      new_path=$(print.input 0 "$message")
+      [[ "$new_path" =~ ^$ ]] && new_path="$default_path"
+      CSVS[$manager]="$new_path"
 
-      [[ "$path" == false ]] && break
+      # Update
+      path=$(core.csv.path "$manager")
+      is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+      exists=$(core.csv.exists "$manager" false && echo true || echo false)
+
+      # Redraw
+      tput cuu1
+      tput el
+      if $is_bypassed; then
+        print.info "$message ${BLUE}$path${NO_COLOR}"
+      elif $exists; then
+        print.success "$message ${GREEN}$path${NO_COLOR}"
+      else
+        print.error "$message ${RED}$path${NO_COLOR}"
+      fi
+
       first=false
     done
   done

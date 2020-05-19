@@ -54,6 +54,7 @@ print.confirm() {
 
   # Redraw with answer
   tput cuu1
+  tput el
   print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed

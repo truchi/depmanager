@@ -3,35 +3,30 @@
 . ""
 
 #
-# Returns CSV path for manager $1
-#
-core.csv.path() {
-  echo "${CSVS[$1]}"
-}
-
-#
-# Sets $1 manager's CSV according to (in this precedence order):
+# Sets and returns $1 manager's CSV path according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
 # - default variable (relative to `CSVS[dir]`, see core.dir.resolve)
 #
-core.csv.resolve() {
+core.csv.path() {
   local manager="$1"
-  local file
-  file=$(core.csv.path "$manager")
+  local file="${CSVS[$1]}"
 
   # If file is given in args
   if helpers.is_set "$file"; then
-    # Expand ~
-    file="${file/#\~/$HOME}"
+    if [[ "$file" != false ]]; then
+      # Expand ~
+      file="${file/#\~/$HOME}"
 
-    # Relative to current working dir
-    ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
+      # Relative to current working dir
+      ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
+    fi
   else
     # Use default file, relative to CSVS[dir]
     file="${CSVS[dir]}/${DEFAULTS[$manager]}"
   fi
 
   CSVS[$manager]="$file"
+  echo "$file"
 }
 
 #
@@ -40,10 +35,16 @@ core.csv.resolve() {
 #
 core.csv.exists() {
   local manager="$1"
-  local read_cache="$2"
+  local cache="$2"
 
-  if string.is_empty "$read_cache"; then
-    read_cache=true
+  # Do not worry about "false" values
+  if core.manager.is_bypassed "$manager"; then
+    true
+    return
+  fi
+
+  if string.is_empty "$cache"; then
+    cache=true
   fi
 
   local file
@@ -56,8 +57,8 @@ core.csv.exists() {
 
   helpers.cache \
     "core_csv_exists__$file" \
-    "$read_cache" \
-    true \
+    "$cache" \
+    "$cache" \
     "$cmd"
 }
 

@@ -391,16 +391,10 @@ print.confirm() {
 
   # Redraw with answer
   tput cuu1
+  tput el
   print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
-}
-
-print.fake.confirm() {
-  local message="$1"
-  local answer="$2"
-
-  print.fake.input "${BOLD}$message${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "$answer"
 }
 
 print.input() {
@@ -685,35 +679,30 @@ core.dir.resolve() {
 }
 
 #
-# Returns CSV path for manager $1
-#
-core.csv.path() {
-  echo "${CSVS[$1]}"
-}
-
-#
-# Sets $1 manager's CSV according to (in this precedence order):
+# Sets and returns $1 manager's CSV path according to (in this precedence order):
 # - cli arg          (relative to current workin directory)
 # - default variable (relative to `CSVS[dir]`, see core.dir.resolve)
 #
-core.csv.resolve() {
+core.csv.path() {
   local manager="$1"
-  local file
-  file=$(core.csv.path "$manager")
+  local file="${CSVS[$1]}"
 
   # If file is given in args
   if helpers.is_set "$file"; then
-    # Expand ~
-    file="${file/#\~/$HOME}"
+    if [[ "$file" != false ]]; then
+      # Expand ~
+      file="${file/#\~/$HOME}"
 
-    # Relative to current working dir
-    ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
+      # Relative to current working dir
+      ! string.is_absolute "$file" && ! string.is_url "$file" && file="$(realpath -m "$file")"
+    fi
   else
     # Use default file, relative to CSVS[dir]
     file="${CSVS[dir]}/${DEFAULTS[$manager]}"
   fi
 
   CSVS[$manager]="$file"
+  echo "$file"
 }
 
 #
@@ -722,10 +711,16 @@ core.csv.resolve() {
 #
 core.csv.exists() {
   local manager="$1"
-  local read_cache="$2"
+  local cache="$2"
 
-  if string.is_empty "$read_cache"; then
-    read_cache=true
+  # Do not worry about "false" values
+  if core.manager.is_bypassed "$manager"; then
+    true
+    return
+  fi
+
+  if string.is_empty "$cache"; then
+    cache=true
   fi
 
   local file
@@ -738,8 +733,8 @@ core.csv.exists() {
 
   helpers.cache \
     "core_csv_exists__$file" \
-    "$read_cache" \
-    true \
+    "$cache" \
+    "$cache" \
     "$cmd"
 }
 
@@ -1001,34 +996,56 @@ command.interactive() {
     [[ $i != 0 ]] && print.separator
     print.info "${BOLD}$manager${NO_COLOR}"
 
-    local first=true
     local path
-    local default_path=false
-    local color="$BLUE"
+    local is_bypassed
+    local exists
+    local default_path
+    local default_color
+    path=$(core.csv.path "$manager")
+    is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+    exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
-    while true; do
-      if core.manager.is_bypassed "$manager"; then
-        default_path=false
-        color="$BLUE"
-      else
-        core.csv.resolve "$manager"
+    # Default value for prompt is the path if exists, false (bybpass otherwise)
+    default_path=false
+    default_color="${BLUE}"
+    if ! $is_bypassed && $exists; then
+      default_color="$GREEN"
+      default_path="$path"
+    fi
 
-        if core.csv.exists "$manager" false; then
-          ! $first && break
-          default_path=$(core.csv.path "$manager")
-          color="$GREEN"
-        else
-          print.warning "${YELLOW}$path${NO_COLOR} not found"
-          default_path=false
-          color="$BLUE"
-        fi
+    local first=true
+    while $first || (! $is_bypassed && ! $exists); do
+      local message
+      local color
+      local new_path
+
+      # On the first run, print error if supplied path does not exists
+      if $first && ! $is_bypassed && ! $exists; then
+        print.error "${RED}$path${NO_COLOR} not found"
       fi
 
-      path=$(print.input 0 "CSV (${color}$default_path${NO_COLOR}):")
-      [[ "$path" =~ ^$ ]] && path="$default_path"
-      CSVS[$manager]=$path
+      # Ask for path
+      message="CSV (${default_color}$default_path${NO_COLOR}):"
+      new_path=$(print.input 0 "$message")
+      [[ "$new_path" =~ ^$ ]] && new_path="$default_path"
+      CSVS[$manager]="$new_path"
 
-      [[ "$path" == false ]] && break
+      # Update
+      path=$(core.csv.path "$manager")
+      is_bypassed=$(core.manager.is_bypassed "$manager" && echo true || echo false)
+      exists=$(core.csv.exists "$manager" false && echo true || echo false)
+
+      # Redraw
+      tput cuu1
+      tput el
+      if $is_bypassed; then
+        print.info "$message ${BLUE}$path${NO_COLOR}"
+      elif $exists; then
+        print.success "$message ${GREEN}$path${NO_COLOR}"
+      else
+        print.error "$message ${RED}$path${NO_COLOR}"
+      fi
+
       first=false
     done
   done
@@ -1369,13 +1386,6 @@ main() {
 
   print.system_info
   print.separator
-
-  for manager in "${MANAGERS[@]}"; do
-    core.manager.is_bypassed "$manager" && continue
-
-    core.csv.resolve "$manager"
-    core.csv.exists  "$manager"
-  done
 
   if [[ "$COMMAND" == "interactive" ]]; then
     command.interactive

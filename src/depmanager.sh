@@ -173,13 +173,6 @@ main() {
   print.system_info
   print.separator
 
-  for manager in "${MANAGERS[@]}"; do
-    core.manager.is_bypassed "$manager" && continue
-
-    core.csv.resolve "$manager"
-    core.csv.exists  "$manager"
-  done
-
   if [[ "$COMMAND" == "interactive" ]]; then
     command.interactive
     print.separator
