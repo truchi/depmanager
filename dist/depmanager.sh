@@ -1061,21 +1061,45 @@ command.interactive() {
   local cmd
   cmd=$(print.input 1 "$message")
 
+  # Carriage return if user did not press enter
+  [[ ! "$cmd" =~ ^$ ]] && echo
+
   if   [[ "$cmd" =~ ^[i]$ ]]; then COMMAND="install"
   elif [[ "$cmd" =~ ^[u]$ ]]; then COMMAND="update"
   else                             COMMAND="status"
   fi
 
-  # Carriage return if user did not press enter
-  [[ ! "$cmd" =~ ^$ ]] && echo
-
   # Redraw with answer
   tput cuu1
+  tput el
   print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
-  # Ask for simulate
-  if [[ $COMMAND != "status" ]] && print.confirm "Simulate?"; then
-    SIMULATE=true
+  # Ask for flags
+  if [[ $COMMAND != "status" ]]; then
+    local message="${BOLD}Flags?${NO_COLOR} "
+    message+="(${BOLD}${YELLOW}q${NO_COLOR}uiet/"
+    message+="${BOLD}${YELLOW}y${NO_COLOR}es/"
+    message+="${BOLD}${YELLOW}s${NO_COLOR}imulate)"
+
+    local flags
+    flags=$(print.input 3 "$message")
+
+    # Carriage return if user did not press enter
+    (( $(string.length "$flags") == 3 )) && echo
+
+    local answer=""
+    if [[ "$flags" =~ [qQ] ]]; then QUIET=true   ; answer+="quiet "   ; fi
+    if [[ "$flags" =~ [yY] ]]; then YES=true     ; answer+="yes "     ; fi
+    if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; answer+="simulate "; fi
+
+    # Redraw with answer
+    tput cuu1
+    tput el
+    print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
+
+    # if [[ "$flags" =~ [qQ] ]]; then QUIET=true   ; fi
+    # if [[ "$flags" =~ [yY] ]]; then YES=true     ; fi
+    # if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; fi
   fi
 }
 
@@ -1380,32 +1404,11 @@ main.run() {
   done
 }
 
-write_n() {
-  local n=$1
-  for i in $(seq 0 "$n"); do
-    echo "$2"
-  done
-}
-
-clear_n() {
-  local n=$1
-  for i in $(seq 0 "$n"); do
-    tput cuu1
-    tput el
-  done
-}
-
 #
 # Main
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  # write_n 12 "aaaaaaaaa"
-  # sleep 1
-  # clear_n 10
-  # sleep 1
-  # write_n 12 "bbb"
-  # exit
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system

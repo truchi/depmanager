@@ -158,32 +158,11 @@ main.run() {
   done
 }
 
-write_n() {
-  local n=$1
-  for i in $(seq 0 "$n"); do
-    echo "$2"
-  done
-}
-
-clear_n() {
-  local n=$1
-  for i in $(seq 0 "$n"); do
-    tput cuu1
-    tput el
-  done
-}
-
 #
 # Main
 # Parses arguments, resolves files, run specified command
 #
 main() {
-  # write_n 12 "aaaaaaaaa"
-  # sleep 1
-  # clear_n 10
-  # sleep 1
-  # write_n 12 "bbb"
-  # exit
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system
