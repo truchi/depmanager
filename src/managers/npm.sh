@@ -29,12 +29,32 @@ managers.npm.package.is_installed() {
 # Returns the local version of dependency $1
 #
 managers.npm.package.local_version() {
-  npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── .*@//'
+  local npm_list
+  npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
+
+  # If npm returns "(empty)", package is not installed
+  if [[ "$npm_list" == "(empty)" ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Extract version
+  sed 's/.*@//' <<< "$npm_list"
 }
 
 #
 # Returns the remote version of dependency $1
 #
 managers.npm.package.remote_version() {
-  npm view "$1" version
+  local version
+  version=$(npm view "$1" version 2> /dev/null)
+
+  # If npm errors, package is not installed
+  if [[ $? != 0 ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Return version
+  echo "$version"
 }
