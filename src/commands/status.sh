@@ -27,7 +27,7 @@ command.status.update_table() {
     if $local_version_done && $remote_version_done; then
       local installed=false
       local up_to_date=false
-      [[ "$local_version" != "NONE"            ]] && installed=true
+      [[ "$local_version" != "$PACKAGE_NONE"   ]] && installed=true
       [[ "$local_version" == "$remote_version" ]] && up_to_date=true
 
       if   ! $installed; then levels+=("error")
@@ -68,27 +68,15 @@ command.status.manager.version() {
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-command.status.package.local_version() {
-  local dependency=$1
-
-  local version="NONE"
-  if core.package.is_installed "$manager" "$dependency" false; then
-    version=$(core.package.local_version "$manager" "$dependency" false)
-  fi
-
-  until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${dependency}_local_version,$version" >"$FIFO"
-}
-
-command.status.package.remote_version() {
-  local dependency=$1
+command.status.package.version() {
+  local version_type=$1
+  local dependency=$2
 
   local version
-  version=$(core.package.remote_version "$manager" "$dependency" false)
-  ! helpers.is_set "$version" && version="NONE"
+  version=$("core.package.${version_type}_version" "$manager" "$dependency" false)
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${dependency}_remote_version,$version" >"$FIFO"
+  echo "${dependency}_${version_type}_version,$version" > "$FIFO"
 }
 
 command.status() {
@@ -103,8 +91,8 @@ command.status() {
   while IFS=, read -ra line; do
     local dependency=${line[0]}
 
-    command.status.package.local_version  "$dependency" &
-    command.status.package.remote_version "$dependency" &
+    command.status.package.version "local"  "$dependency" &
+    command.status.package.version "remote" "$dependency" &
 
     line_count=$((line_count + 1))
   done < <(core.csv.get "$manager")

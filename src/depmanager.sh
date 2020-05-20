@@ -163,6 +163,22 @@ main.run() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # man="npm"
+  # ps=(git neovim aptitude qlksdqljh)
+  # ps=(qlksdqljh)
+  # for p in "${ps[@]}"; do
+    # echo "$p"
+    # echo -n "is installed: "
+    # core.package.is_installed "$man" "$p" && echo true || echo false
+    # echo -n "exists      : "
+    # core.package.exists "$man" "$p" && echo true || echo false
+    # echo -n "local       : "
+    # core.package.local_version "$man" "$p"
+    # echo -n "remote      : "
+    # core.package.remote_version "$man" "$p"
+    # echo
+  # done
+  # exit
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system

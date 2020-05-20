@@ -39,6 +39,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
+PACKAGE_NONE="<NONE>"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
@@ -73,6 +74,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
+PACKAGE_NONE="<NONE>"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
@@ -639,6 +641,7 @@ for manager in "${MANAGERS[@]}"; do
   DEFAULTS[$manager]="$manager.csv"
 done
 
+PACKAGE_NONE="<NONE>"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
@@ -841,9 +844,21 @@ core.manager.version() {
     "managers.${manager}.version"
 }
 
-###############################################################
-# Functions below cache corresponding functions in managers/ #
-###############################################################
+#
+# Returns true if dependency $2 of manager $1 exists, false otherwise
+# With cache
+#
+core.package.exists() {
+  local manager="$1"
+  local package="$2"
+  local version
+
+  # Write cache
+  core.package.remote_version "$manager" "$package" > /dev/null
+
+  # Has version?
+  [[ $(core.package.remote_version "$manager" "$package") != "$PACKAGE_NONE" ]]
+}
 
 #
 # Returns true if dependency $2 of manager $1 is installed, false otherwise
@@ -852,18 +867,40 @@ core.manager.version() {
 core.package.is_installed() {
   local manager="$1"
   local package="$2"
-  local write_cache="$3"
+  local version
 
-  if string.is_empty "$write_cache"; then
-    write_cache=true
-  fi
+  # Write cache
+  core.package.local_version "$manager" "$package" > /dev/null
 
-  helpers.cache \
-    "core_package_is_installed__${manager}__${package}" \
-    true \
-    "$write_cache" \
-    "managers.${manager}.package.is_installed $package"
+  # Has version?
+  [[ $(core.package.local_version "$manager" "$package") != "$PACKAGE_NONE" ]]
 }
+
+#
+# Returns true if package $2 of manager $1 is up-to-date, false otherwise
+# With cache
+#
+core.package.is_up_to_date() {
+  local manager="$1"
+  local package="$2"
+  local local_version
+  local remote_version
+
+  # Write caches
+  core.package.local_version "$manager" "$package" > /dev/null
+  core.package.remote_version "$manager" "$package" > /dev/null
+
+  # Get versions
+  local_version=$(core.package.local_version "$manager" "$package")
+  remote_version=$(core.package.remote_version "$manager" "$package")
+
+  # Compare versions
+  [[ "$local_version" == "$remote_version" ]]
+}
+
+###############################################################
+# Functions below cache corresponding functions in managers/ #
+###############################################################
 
 #
 # Returns the local version of dependency $2 of manager $1
@@ -920,29 +957,46 @@ managers.apt.version() {
 }
 
 #
-# Returns true if dependency $1 is installed, false otherwise
-#
-managers.apt.package.is_installed() {
-  local dependency=$1
-  local list
-  list=$(apt list --installed "$dependency" 2>/dev/null | sed 's/Listing...//')
-
-  echo "$list" | grep "^$dependency/" | grep '\[installed' >/dev/null 2>&1
-}
-
-
-#
 # Returns the local version of dependency $1
 #
 managers.apt.package.local_version() {
-  apt-cache policy "$1" | sed '2q;d' | sed 's/  Installed: \(.*\).*/\1/'
+  local dpkg_list
+  dpkg_list=$(dpkg -l "$1" 2> /dev/null)
+
+  # If dpkg errors, package is not installed
+  if [[ $? != 0 ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Get relevant line
+  dpkg_list=$(sed '6q;d' <<< "$dpkg_list")
+
+  # If status is "n", package is not installed
+  if [[ $(string.slice "$dpkg_list" 1 1) == "n" ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Extract version
+  sed 's/\S*\s*\S*\s*\(\S*\).*/\1/' <<< "$dpkg_list"
 }
 
 #
 # Returns the remote version of dependency $1
 #
 managers.apt.package.remote_version() {
-  apt-cache policy "$1" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
+  local policy
+  policy=$(apt-cache policy "$1")
+
+  # If apt returns nothing, package is not installed
+  if [[ "$policy" == "" ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Extract version
+  echo "$policy" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
 }
 
 #
@@ -974,14 +1028,34 @@ managers.npm.package.is_installed() {
 # Returns the local version of dependency $1
 #
 managers.npm.package.local_version() {
-  npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── .*@//'
+  local npm_list
+  npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
+
+  # If npm returns "(empty)", package is not installed
+  if [[ "$npm_list" == "(empty)" ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Extract version
+  sed 's/.*@//' <<< "$npm_list"
 }
 
 #
 # Returns the remote version of dependency $1
 #
 managers.npm.package.remote_version() {
-  npm view "$1" version
+  local version
+  version=$(npm view "$1" version 2> /dev/null)
+
+  # If npm errors, package is not installed
+  if [[ $? != 0 ]]; then
+    echo "$PACKAGE_NONE"
+    return
+  fi
+
+  # Return version
+  echo "$version"
 }
 
 command.interactive() {
@@ -1096,10 +1170,6 @@ command.interactive() {
     tput cuu1
     tput el
     print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
-
-    # if [[ "$flags" =~ [qQ] ]]; then QUIET=true   ; fi
-    # if [[ "$flags" =~ [yY] ]]; then YES=true     ; fi
-    # if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; fi
   fi
 }
 
@@ -1130,7 +1200,7 @@ command.status.update_table() {
     if $local_version_done && $remote_version_done; then
       local installed=false
       local up_to_date=false
-      [[ "$local_version" != "NONE"            ]] && installed=true
+      [[ "$local_version" != "$PACKAGE_NONE"   ]] && installed=true
       [[ "$local_version" == "$remote_version" ]] && up_to_date=true
 
       if   ! $installed; then levels+=("error")
@@ -1171,27 +1241,15 @@ command.status.manager.version() {
   echo "${manager}_version,$version" >"$FIFO"
 }
 
-command.status.package.local_version() {
-  local dependency=$1
-
-  local version="NONE"
-  if core.package.is_installed "$manager" "$dependency" false; then
-    version=$(core.package.local_version "$manager" "$dependency" false)
-  fi
-
-  until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${dependency}_local_version,$version" >"$FIFO"
-}
-
-command.status.package.remote_version() {
-  local dependency=$1
+command.status.package.version() {
+  local version_type=$1
+  local dependency=$2
 
   local version
-  version=$(core.package.remote_version "$manager" "$dependency" false)
-  ! helpers.is_set "$version" && version="NONE"
+  version=$("core.package.${version_type}_version" "$manager" "$dependency" false)
 
   until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${dependency}_remote_version,$version" >"$FIFO"
+  echo "${dependency}_${version_type}_version,$version" > "$FIFO"
 }
 
 command.status() {
@@ -1206,8 +1264,8 @@ command.status() {
   while IFS=, read -ra line; do
     local dependency=${line[0]}
 
-    command.status.package.local_version  "$dependency" &
-    command.status.package.remote_version "$dependency" &
+    command.status.package.version "local"  "$dependency" &
+    command.status.package.version "remote" "$dependency" &
 
     line_count=$((line_count + 1))
   done < <(core.csv.get "$manager")
@@ -1409,6 +1467,22 @@ main.run() {
 # Parses arguments, resolves files, run specified command
 #
 main() {
+  # man="npm"
+  # ps=(git neovim aptitude qlksdqljh)
+  # ps=(qlksdqljh)
+  # for p in "${ps[@]}"; do
+    # echo "$p"
+    # echo -n "is installed: "
+    # core.package.is_installed "$man" "$p" && echo true || echo false
+    # echo -n "exists      : "
+    # core.package.exists "$man" "$p" && echo true || echo false
+    # echo -n "local       : "
+    # core.package.local_version "$man" "$p"
+    # echo -n "remote      : "
+    # core.package.remote_version "$man" "$p"
+    # echo
+  # done
+  # exit
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system
