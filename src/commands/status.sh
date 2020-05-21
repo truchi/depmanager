@@ -125,7 +125,6 @@ command.status() {
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
 
-    sleep 1s
     "$redraw" && command.status.update_table "$manager" $((line_count + 2))
 
     j=$((j + 1))
