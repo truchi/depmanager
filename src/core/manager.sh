@@ -35,7 +35,7 @@ core.manager.is_ignored() {
 }
 
 ###############################################################
-# Functions below cache corresponding functions in managers/ #
+# Functions below cache corresponding functions in managers/  #
 ###############################################################
 
 #

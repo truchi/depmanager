@@ -57,7 +57,7 @@ core.package.is_uptodate() {
 }
 
 ###############################################################
-# Functions below cache corresponding functions in managers/ #
+# Functions below cache corresponding functions in managers/  #
 ###############################################################
 
 #
