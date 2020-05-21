@@ -56,3 +56,13 @@ managers.apt.package.remote_version() {
   # Extract version
   echo "$policy" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
 }
+
+#
+#
+#
+managers.apt.package.install_command() {
+  local package="$1"
+
+  echo "sudo apt install $package"
+}
+

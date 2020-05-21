@@ -608,7 +608,7 @@ core.csv.exists() {
   local cache="$2"
 
   if core.manager.is_ignored "$manager"; then
-    true
+    true # NOTE or false?
     return
   fi
 
@@ -727,13 +727,34 @@ core.package.is_uptodate() {
   local local_version
   local remote_version
 
-  core.package.local_version "$manager" "$package" > /dev/null
-  core.package.remote_version "$manager" "$package" > /dev/null
+  if ! core.package.exists "$manager" "$package"; then
+    false
+    return
+  fi
+
+  if ! core.package.is_installed "$manager" "$package"; then
+    false
+    return
+  fi
 
   local_version=$(core.package.local_version "$manager" "$package")
   remote_version=$(core.package.remote_version "$manager" "$package")
 
   [[ "$local_version" == "$remote_version" ]]
+}
+
+core.package.install_command() {
+  local manager="$1"
+  local package="$2"
+
+  echo $(managers.${manager}.package.install_command "$package")
+}
+
+core.package.install() {
+  local manager="$1"
+  local package="$2"
+
+  core.package.install_command "$manager" "$package"
 }
 
 
@@ -806,6 +827,12 @@ managers.apt.package.remote_version() {
   fi
 
   echo "$policy" | sed '3q;d' | sed 's/  Candidate: \(.*\).*/\1/'
+}
+
+managers.apt.package.install_command() {
+  local package="$1"
+
+  echo "sudo apt install $package"
 }
 
 managers.npm.exists() {
@@ -1091,34 +1118,46 @@ command.install() {
   local file
   file=$(core.csv.path "$manager")
 
-  print.info "${BOLD}$manager${NO_COLOR}"
+  local manager_version
+  core.manager.version "$manager" > /dev/null
+  manager_version=$(core.manager.version "$manager")
+  print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
 
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    print.info "$dependency"
+    print.info "${BOLD}$dependency${NO_COLOR} ..."
 
+    local local_version
     local remote_version
+    local exists
+    local is_installed
+    local is_uptodate
+
     core.package.remote_version "$manager" "$dependency" > /dev/null
     remote_version=$(core.package.remote_version "$manager" "$dependency")
-    ! helpers.is_set "$remote_version" && remote_version="NONE"
+    exists=$(core.package.exists "$manager" "$dependency" && echo true || echo false)
 
-    local installed=false
-    local local_version="NONE"
-    local is_uptodate
-    if core.package.is_installed "$manager" "$dependency"; then
-      installed=true
-      core.package.local_version "$manager" "$dependency" > /dev/null
-      local_version=$(core.package.local_version "$manager" "$dependency")
-      is_uptodate=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
+    if ! $exists; then
+      tput cuu1
+      tput el
+      print.warning "${BOLD}$dependency${NO_COLOR} do not exists"
+      continue
     fi
 
-    if ! $installed; then
-      print.info "INSTALL!!!!! $dependency"
-    elif $is_uptodate; then
-      print.success "${BOLD}$dependency${NO_COLOR} is up-to-date ($local_version)"
+    core.package.local_version "$manager" "$dependency" > /dev/null
+    local_version=$(core.package.local_version "$manager" "$dependency")
+    is_uptodate=$(core.package.is_uptodate "$manager" "$dependency" && echo true || echo false)
+
+    tput cuu1
+    tput el
+    if $is_uptodate; then
+      print.success "${BOLD}$dependency${NO_COLOR} ($local_version) is up-to-date"
     else
-      print.warning "${BOLD}$dependency${NO_COLOR} is not up-to-date"
+      print.info "${BOLD}$dependency${NO_COLOR} ($local_version) is not up-to-date, installing"
+      local install_command
+      install_command=$(core.package.install_command "$manager" "$dependency")
+      print.info "Running ${BLUE}$install_command${NO_COLOR}"
     fi
 
     i=$((i + 1))

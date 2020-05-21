@@ -35,7 +35,7 @@ core.package.is_installed() {
 }
 
 #
-# Returns true if package $2 of manager $1 is up-to-date, false otherwise
+# Returns true if package $2 of manager $1 exists, is installed and is up-to-date, false otherwise
 # With cache
 #
 core.package.is_uptodate() {
@@ -44,9 +44,17 @@ core.package.is_uptodate() {
   local local_version
   local remote_version
 
-  # Write caches
-  core.package.local_version "$manager" "$package" > /dev/null
-  core.package.remote_version "$manager" "$package" > /dev/null
+  # Not uptodate if doesn't exists
+  if ! core.package.exists "$manager" "$package"; then
+    false
+    return
+  fi
+
+  # Not uptodate if not installed
+  if ! core.package.is_installed "$manager" "$package"; then
+    false
+    return
+  fi
 
   # Get versions
   local_version=$(core.package.local_version "$manager" "$package")
@@ -54,6 +62,26 @@ core.package.is_uptodate() {
 
   # Compare versions
   [[ "$local_version" == "$remote_version" ]]
+}
+
+#
+# Return the install command for dependency $2 of manager $1
+#
+core.package.install_command() {
+  local manager="$1"
+  local package="$2"
+
+  echo $(managers.${manager}.package.install_command "$package")
+}
+
+#
+# Installs dependency $2 of manager $1
+#
+core.package.install() {
+  local manager="$1"
+  local package="$2"
+
+  core.package.install_command "$manager" "$package"
 }
 
 ###############################################################

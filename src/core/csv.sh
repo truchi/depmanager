@@ -39,7 +39,7 @@ core.csv.exists() {
 
   # Do not worry about ignored
   if core.manager.is_ignored "$manager"; then
-    true
+    true # NOTE or false?
     return
   fi
 
