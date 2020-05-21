@@ -880,7 +880,7 @@ core.package.is_installed() {
 # Returns true if package $2 of manager $1 is up-to-date, false otherwise
 # With cache
 #
-core.package.is_up_to_date() {
+core.package.is_uptodate() {
   local manager="$1"
   local package="$2"
   local local_version
@@ -1184,33 +1184,46 @@ command.status.update_table() {
   local i=1
   while IFS=, read -ra line; do
     local dependency=${line[0]}
-    ! helpers.is_set "$dependency" && continue
-
     local local_version="${statuses[${dependency}_local_version]}"
     local remote_version="${statuses[${dependency}_remote_version]}"
-    local local_version_done
-    local remote_version_done
-    local_version_done=$(helpers.is_set "$local_version" && echo true || echo false)
-    remote_version_done=$(helpers.is_set "$remote_version" && echo true || echo false)
+
+    local is_installed=false
+    local exists=false
+    local is_uptodate=false
+    local local_version_done=false
+    local remote_version_done=false
+    local both_version_done=false
+    local local_version_text="..."
+    local remote_version_text="..."
+    local local_version_color=""
+    local remote_version_color=""
+    local level="info"
+
+    [[ "$local_version"  != "$PACKAGE_NONE"   ]] && is_installed=true
+    [[ "$remote_version" != "$PACKAGE_NONE"   ]] && exists=true
+    [[ "$local_version"  == "$remote_version" ]] && is_uptodate=true
+
+    helpers.is_set "$local_version"             && local_version_done=true
+    helpers.is_set "$remote_version"            && remote_version_done=true
+    $local_version_done && $remote_version_done && both_version_done=true
+
+    $local_version_done  && local_version_text="$local_version"
+    $remote_version_done && remote_version_text="$remote_version"
+
+    $local_version_done  && ! $is_installed && local_version_color="$RED"  && level="error"
+    $remote_version_done && ! $exists       && remote_version_color="$RED" && level="error"
+
+    $both_version_done                                    && local_version_color="$RED"
+    $both_version_done   && $is_installed                 && local_version_color="$YELLOW"
+    $both_version_done   && $is_installed && $is_uptodate && local_version_color="$GREEN"
+    $both_version_done                                    && level="error"
+    $both_version_done   && $is_installed                 && level="warning"
+    $both_version_done   && $is_installed && $is_uptodate && level="success"
 
     messages+=("${BOLD}$dependency${NO_COLOR}")
-    $local_version_done  && messages+=("$local_version")  || messages+=("...")
-    $remote_version_done && messages+=("$remote_version") || messages+=("...")
-
-    if $local_version_done && $remote_version_done; then
-      local installed=false
-      local up_to_date=false
-      [[ "$local_version" != "$PACKAGE_NONE"   ]] && installed=true
-      [[ "$local_version" == "$remote_version" ]] && up_to_date=true
-
-      if   ! $installed; then levels+=("error")
-      elif $up_to_date ; then levels+=("success")
-      else                    levels+=("warning")
-      fi
-    else
-      levels+=("info")
-    fi
-
+    messages+=("${local_version_color}$local_version_text${NO_COLOR}")
+    messages+=("${remote_version_color}$remote_version_text${NO_COLOR}")
+    levels+=("$level")
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
@@ -1314,17 +1327,17 @@ command.install() {
 
     local installed=false
     local local_version="NONE"
-    local up_to_date
+    local is_uptodate
     if core.package.is_installed "$manager" "$dependency"; then
       installed=true
       core.package.local_version "$manager" "$dependency" > /dev/null
       local_version=$(core.package.local_version "$manager" "$dependency")
-      up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
+      is_uptodate=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 
     if ! $installed; then
       print.info "INSTALL!!!!! $dependency"
-    elif $up_to_date; then
+    elif $is_uptodate; then
       print.success "${BOLD}$dependency${NO_COLOR} is up-to-date ($local_version)"
     else
       print.warning "${BOLD}$dependency${NO_COLOR} is not up-to-date"

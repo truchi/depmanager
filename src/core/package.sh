@@ -38,7 +38,7 @@ core.package.is_installed() {
 # Returns true if package $2 of manager $1 is up-to-date, false otherwise
 # With cache
 #
-core.package.is_up_to_date() {
+core.package.is_uptodate() {
   local manager="$1"
   local package="$2"
   local local_version

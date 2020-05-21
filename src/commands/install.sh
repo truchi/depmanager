@@ -19,17 +19,17 @@ command.install() {
 
     local installed=false
     local local_version="NONE"
-    local up_to_date
+    local is_uptodate
     if core.package.is_installed "$manager" "$dependency"; then
       installed=true
       core.package.local_version "$manager" "$dependency" > /dev/null
       local_version=$(core.package.local_version "$manager" "$dependency")
-      up_to_date=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
+      is_uptodate=$([[ "$local_version" == "$remote_version" ]] && echo true || echo false)
     fi
 
     if ! $installed; then
       print.info "INSTALL!!!!! $dependency"
-    elif $up_to_date; then
+    elif $is_uptodate; then
       print.success "${BOLD}$dependency${NO_COLOR} is up-to-date ($local_version)"
     else
       print.warning "${BOLD}$dependency${NO_COLOR} is not up-to-date"
