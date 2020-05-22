@@ -58,11 +58,16 @@ core.manager.exists() {
 #
 core.manager.version() {
   local manager="$1"
+  local write_cache="$2"
+
+  if string.is_empty "$write_cache"; then
+    write_cache=true
+  fi
 
   helpers.cache \
     "core_manager_version__$manager" \
     true \
-    true \
+    "$write_cache" \
     "managers.${manager}.version"
 }
 
