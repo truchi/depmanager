@@ -5,6 +5,8 @@
 . ""
 # shellcheck source=utils/helpers.sh
 . ""
+# shellcheck source=utils/cache.sh
+. ""
 # shellcheck source=utils/string.sh
 . ""
 # shellcheck source=utils/array.sh
@@ -20,6 +22,8 @@
 # shellcheck source=core/manager.sh
 . ""
 # shellcheck source=core/package.sh
+. ""
+# shellcheck source=core/async_versions.sh
 . ""
 # shellcheck source=managers/apt.sh
 . ""
@@ -165,7 +169,20 @@ main.run() {
 main() {
   main.parse_args "$@"
   core.dir.resolve
-  core.manager.system
+  # core.manager.system
+
+  core.csv.get "apt" > /dev/null
+
+  echo async
+  time async_versions.manager "apt" true
+  echo "cache length ${#__cache[@]}"
+  echo "versions length ${#async_versions[@]}"
+
+  # for i in "${!async_versions[@]}"; do
+    # echo "$i :::: ${async_versions[$i]}"
+  # done
+
+  exit
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false

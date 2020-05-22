@@ -10,6 +10,7 @@ YES=false
 SIMULATE=false
 
 declare -A __cache
+declare -A async_versions
 declare -A CSVS
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
@@ -45,6 +46,7 @@ YES=false
 SIMULATE=false
 
 declare -A __cache
+declare -A async_versions
 declare -A CSVS
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
@@ -88,45 +90,6 @@ helpers.command_exists() {
 helpers.is_subshell() {
   [ "$$" -ne "$BASHPID" ]
 }
-
-helpers.cache() {
-  local args=("$@")
-  local cache_key="$1"
-  local read_cache="$2"
-  local write_cache="$3"
-  local cmd="$4"
-
-  local cache_string_key="__${cache_key}__string"
-  local cache_code_key="__${cache_key}__code"
-  local string
-  local code
-
-  if $read_cache && helpers.is_set "${__cache[$cache_key]}"; then
-    string="${__cache[$cache_string_key]}"
-    code=${__cache[$cache_code_key]}
-  else
-    args=("${args[@]:4}")
-
-    string=$($cmd "${args[@]}")
-    code="$?"
-
-    if $write_cache; then
-      if helpers.is_subshell; then
-        echo "HELPERS.CACHE CANNOT WRITE IN A SUBSHELL (key: $cache_key, cmd: $cmd)"
-        kill $$
-        exit
-      fi
-
-      __cache[$cache_key]="true"
-      __cache[$cache_string_key]="$string"
-      __cache[$cache_code_key]=$code
-    fi
-  fi
-
-  ! string.is_empty "$string" && echo "$string"
-  return $code
-}
-
 helpers.sanitize_csv() {
   local lines=""
   local packages=()
@@ -152,6 +115,58 @@ helpers.sanitize_csv() {
   lines=$(sed 's/\s$//g' <<< "$lines")
 
   echo "$lines"
+}
+
+cache() {
+  local args=("$@")
+  local cache_key="$1"
+  local read_cache="$2"
+  local write_cache="$3"
+  local cmd="$4"
+
+  local string
+  local code
+
+  if $read_cache && cache.has "$cache_key"; then
+    string=$(cache.get_string "$cache_key")
+    code=$(cache.get_code "$cache_key")
+  else
+    args=("${args[@]:4}")
+
+    string=$($cmd "${args[@]}")
+    code="$?"
+
+    if $write_cache; then
+      if helpers.is_subshell; then
+        echo "HELPERS.CACHE CANNOT WRITE IN A SUBSHELL (key: $cache_key, cmd: $cmd)"
+        kill $$
+        exit
+      fi
+
+      cache.set "$cache_key" "$string" "$code"
+    fi
+  fi
+
+  string.is_empty "$string" || echo "$string"
+  return $code
+}
+
+cache.has() {
+  helpers.is_set "${__cache[$1]}"
+}
+
+cache.get_string() {
+  echo "${__cache[__${1}__string]}"
+}
+
+cache.get_code() {
+  echo "${__cache[__${1}__code]}"
+}
+
+cache.set() {
+  __cache[$1]=true
+  __cache[__${1}__string]="$2"
+  __cache[__${1}__code]="$3"
 }
 
 string.is_empty() {
@@ -547,6 +562,7 @@ YES=false
 SIMULATE=false
 
 declare -A __cache
+declare -A async_versions
 declare -A CSVS
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
@@ -624,7 +640,7 @@ core.csv.exists() {
   else                           cmd="helpers.file_exists $file"
   fi
 
-  helpers.cache \
+  cache \
     "core_csv_exists__$file" \
     "$cache" \
     "$cache" \
@@ -636,7 +652,7 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  helpers.cache "core_csv_get__$file" true true "__core.csv.get" "$file"
+  cache "core_csv_get__$file" true true "__core.csv.get" "$file"
 }
 
 __core.csv.get() {
@@ -684,7 +700,7 @@ core.manager.is_ignored() {
 core.manager.exists() {
   local manager="$1"
 
-  helpers.cache \
+  cache \
     "core_manager_exists__$manager" \
     true \
     "$(core.manager.is_system "$manager" && echo true || echo false)" \
@@ -693,11 +709,16 @@ core.manager.exists() {
 
 core.manager.version() {
   local manager="$1"
+  local write_cache="$2"
 
-  helpers.cache \
+  if string.is_empty "$write_cache"; then
+    write_cache=true
+  fi
+
+  cache \
     "core_manager_version__$manager" \
     true \
-    true \
+    "$write_cache" \
     "managers.${manager}.version"
 }
 
@@ -767,7 +788,7 @@ core.package.local_version() {
     write_cache=true
   fi
 
-  helpers.cache \
+  cache \
     "core_package_local_version__${manager}__${package}" \
     true \
     "$write_cache" \
@@ -783,11 +804,118 @@ core.package.remote_version() {
     write_cache=true
   fi
 
-  helpers.cache \
+  cache \
     "core_package_remote_version__${manager}__${package}" \
     true \
     "$write_cache" \
     "managers.${manager}.package.remote_version $package"
+}
+
+async_versions.key() {
+  local manager="$1"
+  local package="$2"
+  local type="$3"
+
+  local key="manager_${manager}"
+  string.is_empty "$package" || key+="__package_${package}"
+  string.is_empty "$type"    || key+="__type_${type}"
+
+  echo "$key"
+}
+
+async_versions.fifo.new() {
+  local fifo="$1"
+
+  [ -p "$fifo" ] && rm "$fifo"
+  mknod "$fifo" p
+}
+
+async_versions.fifo.name() {
+  local manager="$1"
+  local package="$2"
+
+  local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
+  string.is_empty "$package" || fifo+="__${package}"
+
+  echo "$fifo"
+}
+
+async_versions.fifo.read() {
+  local fifo="$1"
+  local count="$2"
+
+  local i=0
+  while true; do
+    local data
+    local array
+
+    read -r data
+    ! helpers.is_set "$data" && continue
+
+    IFS=, read -r -a array <<< "$data"
+    async_versions["${array[0]}"]="${array[1]}"
+
+    i=$((i + 1))
+    (( i == count )) && break
+  done < "$fifo"
+}
+
+async_versions.manager.version() {
+  local fifo="$1"
+  local manager="$2"
+
+  local version
+  version=$(core.manager.version "$manager" false)
+
+  echo "$(async_versions.key "$manager"),$version" > "$fifo"
+}
+
+async_versions.package.version() {
+  local fifo="$1"
+  local manager="$2"
+  local package="$3"
+  local type="$4"
+
+  local version
+  version=$("core.package.${type}_version" "$manager" "$package" false)
+
+  echo "$(async_versions.key "$manager" "$package" "$type"),$version" > "$fifo"
+}
+
+async_versions.package() {
+  local manager="$1"
+  local package="$2"
+  local fifo="$3"
+
+  local do_read=false
+  if string.is_empty "$fifo"; then
+    do_read=true
+    fifo=$(async_versions.fifo.name "$manager" "$package")
+    async_versions.fifo.new "$fifo"
+  fi
+
+  async_versions.package.version "$fifo" "$manager" "$package" "local"  &
+  async_versions.package.version "$fifo" "$manager" "$package" "remote" &
+
+  $do_read && async_versions.fifo.read "$fifo" 2
+}
+
+async_versions.manager() {
+  local manager="$1"
+  local fifo
+  fifo=$(async_versions.fifo.name "$manager")
+
+  async_versions.fifo.new "$fifo"
+  async_versions.manager.version "$fifo" "$manager" &
+
+  local i=0
+  while IFS=, read -ra line; do
+    local package=${line[0]}
+    async_versions.package "$manager" "$package" "$fifo" &
+    i=$((i + 1))
+  done < <(core.csv.get "$manager")
+
+  async_versions.fifo.read "$fifo" $((i * 2 + 1))
 }
 
 managers.apt.exists() {
@@ -1103,7 +1231,6 @@ command.status() {
     IFS=, read -r -a array <<< "$data"
     statuses["${array[0]}"]="${array[1]}"
 
-    sleep 1s
     "$redraw" && command.status.update_table "$manager" $((line_count + 2))
 
     j=$((j + 1))
@@ -1279,7 +1406,16 @@ main.run() {
 main() {
   main.parse_args "$@"
   core.dir.resolve
-  core.manager.system
+
+  core.csv.get "apt" > /dev/null
+
+  echo async
+  time async_versions.manager "apt" true
+  echo "cache length ${#__cache[@]}"
+  echo "versions length ${#async_versions[@]}"
+
+
+  exit
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false

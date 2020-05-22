@@ -11,6 +11,7 @@ YES=false
 SIMULATE=false
 
 declare -A __cache
+declare -A async_versions
 declare -A CSVS
 declare -A DEFAULTS
 DEFAULTS[dir]="$HOME/.config/depmanager"
