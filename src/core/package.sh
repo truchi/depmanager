@@ -101,7 +101,7 @@ core.package.local_version() {
     write_cache=true
   fi
 
-  helpers.cache \
+  cache \
     "core_package_local_version__${manager}__${package}" \
     true \
     "$write_cache" \
@@ -121,7 +121,7 @@ core.package.remote_version() {
     write_cache=true
   fi
 
-  helpers.cache \
+  cache \
     "core_package_remote_version__${manager}__${package}" \
     true \
     "$write_cache" \

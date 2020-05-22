@@ -55,7 +55,7 @@ core.csv.exists() {
   else                           cmd="helpers.file_exists $file"
   fi
 
-  helpers.cache \
+  cache \
     "core_csv_exists__$file" \
     "$cache" \
     "$cache" \
@@ -71,7 +71,7 @@ core.csv.get() {
   local file
   file=$(core.csv.path "$manager")
 
-  helpers.cache "core_csv_get__$file" true true "__core.csv.get" "$file"
+  cache "core_csv_get__$file" true true "__core.csv.get" "$file"
 }
 
 __core.csv.get() {

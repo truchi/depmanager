@@ -45,7 +45,7 @@ core.manager.is_ignored() {
 core.manager.exists() {
   local manager="$1"
 
-  helpers.cache \
+  cache \
     "core_manager_exists__$manager" \
     true \
     "$(core.manager.is_system "$manager" && echo true || echo false)" \
@@ -64,7 +64,7 @@ core.manager.version() {
     write_cache=true
   fi
 
-  helpers.cache \
+  cache \
     "core_manager_version__$manager" \
     true \
     "$write_cache" \
