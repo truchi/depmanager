@@ -843,18 +843,28 @@ __core.csv.get() {
 #
 # Retuns true if $1 manager's CSV is empty, false otherwise
 #
+core.csv.length() {
+  local manager="$1"
+
+  if core.csv.is_empty "$manager"; then
+    echo 0
+    return
+  fi
+
+  local csv
+  csv=$(core.csv.get "$manager")
+
+  wc -l <<< "$csv"
+}
+
+#
+# Retuns true if $1 manager's CSV is empty, false otherwise
+#
 core.csv.is_empty() {
   local manager="$1"
-  local i=0
 
-  # Count non-empty lines
-  while IFS=, read -ra line; do
-    # TODO should account whitespaces as empty lines
-    helpers.is_set "${line[0]}" && i=$((i + 1))
-  done < <(core.csv.get "$manager")
-
-  # Do we have non-empty lines?
-  ! ((i > 0))
+  core.csv.get "$manager" > /dev/null
+  string.is_empty "$(core.csv.get "$manager")"
 }
 
 #
@@ -1305,27 +1315,37 @@ command.interactive() {
 }
 
 command.status.update_table() {
+  [[ -z $last_update ]] && last_update=0
+  local now
+  now=$(date +%s)
+  ((now - last_update < 1)) && return
+
   local manager=$1
   local remove=$2
-  local headers
-  headers=("${BLUE}${BOLD}Package${NO_COLOR}" "${BLUE}${BOLD}Local${NO_COLOR}" "${BLUE}${BOLD}Remote${NO_COLOR}")
+  local headers=()
   local levels=()
   local messages=()
 
   local i=1
   while IFS=, read -ra line; do
-    local dependency=${line[0]}
-    local local_version="${statuses[${dependency}_local_version]}"
-    local remote_version="${statuses[${dependency}_remote_version]}"
+    local package=${line[0]}
+
+    local local_version_done=false
+    local remote_version_done=false
+    local both_versions_done=false
+
+    cache.has "core_package_version_local__${manager}__${package}"  && local_version_done=true
+    cache.has "core_package_version_remote__${manager}__${package}" && remote_version_done=true
+    $local_version_done && $remote_version_done                     && both_versions_done=true
+
+    local local_version="..."
+    local remote_version="..."
+    $local_version_done  && local_version=$(core.package.version.local   "$manager" "$package")
+    $remote_version_done && remote_version=$(core.package.version.remote "$manager" "$package")
 
     local is_installed=false
     local exists=false
     local is_uptodate=false
-    local local_version_done=false
-    local remote_version_done=false
-    local both_version_done=false
-    local local_version_text="..."
-    local remote_version_text="..."
     local local_version_color=""
     local remote_version_color=""
     local level="info"
@@ -1334,38 +1354,30 @@ command.status.update_table() {
     [[ "$remote_version" != "$PACKAGE_NONE"   ]] && exists=true
     [[ "$local_version"  == "$remote_version" ]] && is_uptodate=true
 
-    helpers.is_set "$local_version"             && local_version_done=true
-    helpers.is_set "$remote_version"            && remote_version_done=true
-    $local_version_done && $remote_version_done && both_version_done=true
-
-    $local_version_done  && local_version_text="$local_version"
-    $remote_version_done && remote_version_text="$remote_version"
-
     $local_version_done  && ! $is_installed && local_version_color="$RED"  && level="error"
     $remote_version_done && ! $exists       && remote_version_color="$RED" && level="error"
 
-    $both_version_done                                    && local_version_color="$RED"
-    $both_version_done   && $is_installed                 && local_version_color="$YELLOW"
-    $both_version_done   && $is_installed && $is_uptodate && local_version_color="$GREEN"
-    $both_version_done                                    && level="error"
-    $both_version_done   && $is_installed                 && level="warning"
-    $both_version_done   && $is_installed && $is_uptodate && level="success"
+    $both_versions_done                                    && local_version_color="$RED"
+    $both_versions_done   && $is_installed                 && local_version_color="$YELLOW"
+    $both_versions_done   && $is_installed && $is_uptodate && local_version_color="$GREEN"
+    $both_versions_done                                    && level="error"
+    $both_versions_done   && $is_installed                 && level="warning"
+    $both_versions_done   && $is_installed && $is_uptodate && level="success"
 
-    messages+=("${BOLD}$dependency${NO_COLOR}")
-    messages+=("${local_version_color}$local_version_text${NO_COLOR}")
-    messages+=("${remote_version_color}$remote_version_text${NO_COLOR}")
+    messages+=("${BOLD}$package${NO_COLOR}")
+    messages+=("${local_version_color}$local_version${NO_COLOR}")
+    messages+=("${remote_version_color}$remote_version${NO_COLOR}")
     levels+=("$level")
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
-  local manager_version="${statuses[${manager}_version]}"
-  local title
+  local manager_version="..."
+  cache.has "core_manager_version__$manager" && manager_version=$(core.manager.version "$manager")
 
-  if helpers.is_set "$manager_version"; then
-    title="${BLUE}${BOLD}$manager${NO_COLOR} ($manager_version)"
-  else
-    title="${BLUE}${BOLD}$manager${NO_COLOR} (...)"
-  fi
+  local title="${BLUE}${BOLD}$manager${NO_COLOR} ($manager_version)"
+  headers+=("${BLUE}${BOLD}Package${NO_COLOR}")
+  headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
+  headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
   # Clear screen
   for i in $(seq 1 "$remove"); do
@@ -1373,48 +1385,26 @@ command.status.update_table() {
   done
 
   table.print "$title" headers[@] levels[@] messages[@]
+  last_update=$(date +%s)
 }
 
 command.status() {
   local manager=$1
-  declare -A statuses
+  local length
+  length=$(core.csv.length "$manager")
+  length=$((length + 2))
 
-  [ -p "$FIFO" ] && rm "$FIFO"
-
-  command.status.manager.version "$manager" &
-
-  local line_count=0
-  while IFS=, read -ra line; do
-    local dependency=${line[0]}
-
-    command.status.package.version "local"  "$dependency" &
-    command.status.package.version "remote" "$dependency" &
-
-    line_count=$((line_count + 1))
-  done < <(core.csv.get "$manager")
-
-  local redraw=false
-  [ -t 1 ] && redraw=true
-
-  "$redraw" && command.status.update_table "$manager" 0
-  mknod "$FIFO" p
-
-  local j=0
-  while true; do
-    read -r data
-    ! helpers.is_set "$data" && continue
-
-    local array
-    IFS=, read -r -a array <<< "$data"
-    statuses["${array[0]}"]="${array[1]}"
-
-    "$redraw" && command.status.update_table "$manager" $((line_count + 2))
-
-    j=$((j + 1))
-    (( j == $((line_count * 2 + 1)) )) && break
-  done <"$FIFO"
-
-  ! "$redraw" && command.status.update_table "$manager" 0
+  # If in terminal
+  if [ -t 1 ]; then
+    last_update=0
+    command.status.update_table "$manager" 0
+    core.manager.async.versions "$manager" "command.status.update_table" "$manager" "$length"
+    last_update=0
+    command.status.update_table "$manager" "$length"
+  else
+    core.manager.async.versions "$manager"
+    command.status.update_table "$manager" 0
+  fi
 }
 
 command.install() {
@@ -1582,10 +1572,6 @@ main.run() {
       continue
     fi
 
-    # Write caches
-    core.manager.version "$manager" > /dev/null
-    core.csv.get         "$manager" > /dev/null
-
     # Run command for manager if CSV contains data,
     # or print warning
     if core.csv.is_empty "$manager"; then
@@ -1596,14 +1582,6 @@ main.run() {
   done
 }
 
-test() {
-  local a="$1"
-  local b="$2"
-  local c="$3"
-
-  echo "a: $a -- b: $b -- c: $c"
-}
-
 #
 # Main
 # Parses arguments, resolves files, run specified command
@@ -1611,16 +1589,7 @@ test() {
 main() {
   main.parse_args "$@"
   core.dir.resolve
-  # core.manager.system
-
-  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
-  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
-
-  for i in "${!__cache[@]}"; do
-    echo "$i :::: ${__cache[$i]}"
-  done
-  echo "cache length ${#__cache[@]}"
-  exit
+  core.manager.system
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false

@@ -82,17 +82,27 @@ __core.csv.get() {
 #
 # Retuns true if $1 manager's CSV is empty, false otherwise
 #
+core.csv.length() {
+  local manager="$1"
+
+  if core.csv.is_empty "$manager"; then
+    echo 0
+    return
+  fi
+
+  local csv
+  csv=$(core.csv.get "$manager")
+
+  wc -l <<< "$csv"
+}
+
+#
+# Retuns true if $1 manager's CSV is empty, false otherwise
+#
 core.csv.is_empty() {
   local manager="$1"
-  local i=0
 
-  # Count non-empty lines
-  while IFS=, read -ra line; do
-    # TODO should account whitespaces as empty lines
-    helpers.is_set "${line[0]}" && i=$((i + 1))
-  done < <(core.csv.get "$manager")
-
-  # Do we have non-empty lines?
-  ! ((i > 0))
+  core.csv.get "$manager" > /dev/null
+  string.is_empty "$(core.csv.get "$manager")"
 }
 

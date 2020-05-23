@@ -148,10 +148,6 @@ main.run() {
       continue
     fi
 
-    # Write caches
-    core.manager.version "$manager" > /dev/null
-    core.csv.get         "$manager" > /dev/null
-
     # Run command for manager if CSV contains data,
     # or print warning
     if core.csv.is_empty "$manager"; then
@@ -162,14 +158,6 @@ main.run() {
   done
 }
 
-test() {
-  local a="$1"
-  local b="$2"
-  local c="$3"
-
-  echo "a: $a -- b: $b -- c: $c"
-}
-
 #
 # Main
 # Parses arguments, resolves files, run specified command
@@ -177,16 +165,7 @@ test() {
 main() {
   main.parse_args "$@"
   core.dir.resolve
-  # core.manager.system
-
-  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
-  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
-
-  for i in "${!__cache[@]}"; do
-    echo "$i :::: ${__cache[$i]}"
-  done
-  echo "cache length ${#__cache[@]}"
-  exit
+  core.manager.system
 
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
