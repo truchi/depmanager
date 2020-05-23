@@ -828,7 +828,7 @@ core.package.install_command() {
   local manager="$1"
   local package="$2"
 
-  echo $(managers.${manager}.package.install_command "$package")
+  "managers.${manager}.package.install_command" "$package"
 }
 
 core.package.install() {
