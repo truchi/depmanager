@@ -7,6 +7,8 @@
 . ""
 # shellcheck source=utils/cache.sh
 . ""
+# shellcheck source=utils/cache.async.sh
+. ""
 # shellcheck source=utils/string.sh
 . ""
 # shellcheck source=utils/array.sh
@@ -22,8 +24,6 @@
 # shellcheck source=core/manager.sh
 . ""
 # shellcheck source=core/package.sh
-. ""
-# shellcheck source=core/async_versions.sh
 . ""
 # shellcheck source=managers/apt.sh
 . ""
@@ -171,19 +171,13 @@ main() {
   core.dir.resolve
   # core.manager.system
 
-  core.csv.get "apt" > /dev/null
-
-  echo LALAL
-  time async_versions.manager "apt"
-  echo "versions length ${#async_versions[@]}"
-  echo "cache length ${#__cache[@]}"
-  time async_versions.manager "apt"
+  time core.manager.async.versions "apt"
   echo "cache length ${#__cache[@]}"
 
-
-  # for i in "${!async_versions[@]}"; do
-    # echo "$i :::: ${async_versions[$i]}"
+  # for i in "${!__cache[@]}"; do
+    # echo "$i :::: ${__cache[$i]}"
   # done
+
   # for i in "${!__cache[@]}"; do
     # echo "$i :::: ${__cache[$i]}"
   # done

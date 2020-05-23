@@ -67,7 +67,8 @@ cache.get_code() {
 }
 
 #
-# Sets cache in $1 string $2 and code $3
+# Sets cache string $2 and code $3 in key $1
+#
 cache.set() {
   __cache[$1]=true
   __cache[__${1}__string]="$2"

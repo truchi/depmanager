@@ -71,27 +71,6 @@ command.status.update_table() {
   table.print "$title" headers[@] levels[@] messages[@]
 }
 
-command.status.manager.version() {
-  local manager=$1
-
-  local version
-  version=$(core.manager.version "$manager")
-
-  until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${manager}_version,$version" >"$FIFO"
-}
-
-command.status.package.version() {
-  local version_type=$1
-  local dependency=$2
-
-  local version
-  version=$("core.package.${version_type}_version" "$manager" "$dependency" false)
-
-  until [ -p "$FIFO" ]; do sleep 0.1; done
-  echo "${dependency}_${version_type}_version,$version" > "$FIFO"
-}
-
 command.status() {
   local manager=$1
   declare -A statuses

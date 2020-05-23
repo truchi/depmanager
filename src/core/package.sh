@@ -84,10 +84,6 @@ core.package.install() {
   core.package.install_command "$manager" "$package"
 }
 
-###############################################################
-# Functions below cache corresponding functions in managers/  #
-###############################################################
-
 #
 # Returns the local version of dependency $2 of manager $1
 # With cache
@@ -109,6 +105,22 @@ core.package.local_version() {
 }
 
 #
+# Asynchronously writes the local version of dependency $3 of manager $2 in cache
+# Async cache MUST listen to fifo $1
+#
+core.package.async.version.local() {
+  local fifo="$1"
+  local manager="$2"
+  local package="$3"
+
+  local key="core_package_local_version__${manager}__${package}"
+  local version
+  version=$("core.package.local_version" "$manager" "$package" false)
+
+  cache.async.write "$fifo" "$key" "$version"
+}
+
+#
 # Returns the remote version of dependency $2 of manager $1
 # With cache
 #
@@ -126,5 +138,21 @@ core.package.remote_version() {
     true \
     "$write_cache" \
     "managers.${manager}.package.remote_version $package"
+}
+
+#
+# Asynchronously writes the remote version of dependency $3 of manager $2 in cache
+# Async cache MUST listen to fifo $1
+#
+core.package.async.version.remote() {
+  local fifo="$1"
+  local manager="$2"
+  local package="$3"
+
+  local key="core_package_remote_version__${manager}__${package}"
+  local version
+  version=$("core.package.remote_version" "$manager" "$package" false)
+
+  cache.async.write "$fifo" "$key" "$version"
 }
 
