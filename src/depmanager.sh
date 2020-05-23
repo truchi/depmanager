@@ -173,14 +173,21 @@ main() {
 
   core.csv.get "apt" > /dev/null
 
-  echo async
-  time async_versions.manager "apt" true
-  echo "cache length ${#__cache[@]}"
+  echo LALAL
+  time async_versions.manager "apt"
   echo "versions length ${#async_versions[@]}"
+  echo "cache length ${#__cache[@]}"
+  time async_versions.manager "apt"
+  echo "cache length ${#__cache[@]}"
+
 
   # for i in "${!async_versions[@]}"; do
     # echo "$i :::: ${async_versions[$i]}"
   # done
+  # for i in "${!__cache[@]}"; do
+    # echo "$i :::: ${__cache[$i]}"
+  # done
+  # echo "cache length ${#__cache[@]}"
 
   exit
 
