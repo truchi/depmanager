@@ -827,6 +827,7 @@ async_versions.fifo.new() {
   local fifo="$1"
 
   [ -p "$fifo" ] && rm "$fifo"
+
   mknod "$fifo" p
 }
 
@@ -909,6 +910,7 @@ async_versions.manager() {
   fifo=$(async_versions.fifo.name "$manager")
 
   async_versions.fifo.new "$fifo"
+
   async_versions.manager.version "$fifo" "$manager" &
 
   local i=0
@@ -1449,7 +1451,6 @@ main() {
   echo "cache length ${#__cache[@]}"
   time async_versions.manager "apt"
   echo "cache length ${#__cache[@]}"
-
 
 
 
