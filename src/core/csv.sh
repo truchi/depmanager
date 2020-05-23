@@ -43,23 +43,14 @@ core.csv.exists() {
     return
   fi
 
-  if string.is_empty "$cache"; then
-    cache=true
-  fi
-
   local file
   file=$(core.csv.path "$manager")
 
   local cmd
-  if string.is_url "$file"; then cmd="helpers.url_exists $file"
-  else                           cmd="helpers.file_exists $file"
-  fi
+  string.is_url "$file" && cmd="helpers.url_exists $file" || cmd="helpers.file_exists $file"
 
-  cache \
-    "core_csv_exists__$file" \
-    "$cache" \
-    "$cache" \
-    "$cmd"
+  string.is_empty "$cache" && cache=true
+  cache "core_csv_exists__$file" "$cache" "$cache" "$cmd"
 }
 
 #
@@ -74,6 +65,10 @@ core.csv.get() {
   cache "core_csv_get__$file" true true "__core.csv.get" "$file"
 }
 
+#
+# Returns content of $1 manager's CSV
+# For cache
+#
 __core.csv.get() {
   local file="$1"
 

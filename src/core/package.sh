@@ -4,7 +4,6 @@
 
 #
 # Returns true if dependency $2 of manager $1 exists, false otherwise
-# With cache
 #
 core.package.exists() {
   local manager="$1"
@@ -20,7 +19,6 @@ core.package.exists() {
 
 #
 # Returns true if dependency $2 of manager $1 is installed, false otherwise
-# With cache
 #
 core.package.is_installed() {
   local manager="$1"
@@ -36,7 +34,6 @@ core.package.is_installed() {
 
 #
 # Returns true if package $2 of manager $1 exists, is installed and is up-to-date, false otherwise
-# With cache
 #
 core.package.is_uptodate() {
   local manager="$1"
@@ -93,15 +90,9 @@ core.package.version.local() {
   local package="$2"
   local write_cache="$3"
 
-  if string.is_empty "$write_cache"; then
-    write_cache=true
-  fi
-
-  cache \
-    "core_package_version_local__${manager}__${package}" \
-    true \
-    "$write_cache" \
-    "managers.${manager}.package.version.local $package"
+  local cmd="managers.${manager}.package.version.local $package"
+  string.is_empty "$write_cache" && write_cache=true
+  cache "core_package_version_local__${manager}__${package}" true "$write_cache" "$cmd"
 }
 
 #
@@ -113,11 +104,7 @@ core.package.async.version.local() {
   local manager="$2"
   local package="$3"
 
-  local key="core_package_version_local__${manager}__${package}"
-  local version
-  version=$("core.package.version.local" "$manager" "$package" false)
-
-  cache.async.write "$fifo" "$key" "$version"
+  cache.async.write "$fifo" "core_package_version_local__${manager}__${package}" "$("core.package.version.local" "$manager" "$package" false)"
 }
 
 #
@@ -129,15 +116,9 @@ core.package.version.remote() {
   local package="$2"
   local write_cache="$3"
 
-  if string.is_empty "$write_cache"; then
-    write_cache=true
-  fi
-
-  cache \
-    "core_package_version_remote__${manager}__${package}" \
-    true \
-    "$write_cache" \
-    "managers.${manager}.package.version.remote $package"
+  local cmd="managers.${manager}.package.version.remote $package"
+  string.is_empty "$write_cache" && write_cache=true
+  cache "core_package_version_remote__${manager}__${package}" true "$write_cache" "$cmd"
 }
 
 #
@@ -149,10 +130,6 @@ core.package.async.version.remote() {
   local manager="$2"
   local package="$3"
 
-  local key="core_package_version_remote__${manager}__${package}"
-  local version
-  version=$("core.package.version.remote" "$manager" "$package" false)
-
-  cache.async.write "$fifo" "$key" "$version"
+  cache.async.write "$fifo" "core_package_version_remote__${manager}__${package}" "$("core.package.version.remote" "$manager" "$package" false)"
 }
 

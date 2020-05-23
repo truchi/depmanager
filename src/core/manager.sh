@@ -40,12 +40,10 @@ core.manager.is_ignored() {
 #
 core.manager.exists() {
   local manager="$1"
+  local write_cache
+  write_cache=$(core.manager.is_system "$manager" && echo true || echo false)
 
-  cache \
-    "core_manager_exists__$manager" \
-    true \
-    "$(core.manager.is_system "$manager" && echo true || echo false)" \
-    "managers.${manager}.exists"
+  cache "core_manager_exists__$manager" true "$write_cache" "managers.${manager}.exists"
 }
 
 #
@@ -56,15 +54,8 @@ core.manager.version() {
   local manager="$1"
   local write_cache="$2"
 
-  if string.is_empty "$write_cache"; then
-    write_cache=true
-  fi
-
-  cache \
-    "core_manager_version__$manager" \
-    true \
-    "$write_cache" \
-    "managers.${manager}.version"
+  "$write_cache" && write_cache=true
+  cache "core_manager_version__$manager" true "$write_cache" "managers.${manager}.version"
 }
 
 #
@@ -75,11 +66,7 @@ core.manager.async.version() {
   local fifo="$1"
   local manager="$2"
 
-  local key="core_manager_version__$manager"
-  local version
-  version=$(core.manager.version "$manager" false)
-
-  cache.async.write "$fifo" "$key" "$version"
+  cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)"
 }
 
 #
