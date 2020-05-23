@@ -3,6 +3,17 @@
 . ""
 
 #
+# Creates fifo $1
+#
+cache.async.init() {
+  local fifo="$1"
+
+  # Creates new fifo
+  [ -p "$fifo" ] && rm "$fifo"
+  mknod "$fifo" p
+}
+
+#
 # Write value $3 in fifo $1 for cache key $2
 #
 cache.async.write() {
@@ -14,7 +25,7 @@ cache.async.write() {
 }
 
 #
-# Reads fifo named $1, $2 times, and writes data in cache
+# Creates and reads fifo named $1, $2 times, and writes data in cache
 #
 cache.async.listen() {
   local fifo="$1"

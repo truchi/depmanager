@@ -86,25 +86,7 @@ core.package.install() {
 # With cache
 #
 core.package.version.local() {
-  local manager="$1"
-  local package="$2"
-  local write_cache="$3"
-
-  local cmd="managers.${manager}.package.version.local $package"
-  string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_local__${manager}__${package}" true "$write_cache" "$cmd"
-}
-
-#
-# Asynchronously writes the local version of dependency $3 of manager $2 in cache
-# Async cache MUST listen to fifo $1
-#
-core.package.async.version.local() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
-
-  cache.async.write "$fifo" "core_package_version_local__${manager}__${package}" "$("core.package.version.local" "$manager" "$package" false)"
+  __core.package.version "$1" "$2" "$3" "local"
 }
 
 #
@@ -112,24 +94,21 @@ core.package.async.version.local() {
 # With cache
 #
 core.package.version.remote() {
-  local manager="$1"
-  local package="$2"
-  local write_cache="$3"
-
-  local cmd="managers.${manager}.package.version.remote $package"
-  string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_remote__${manager}__${package}" true "$write_cache" "$cmd"
+  __core.package.version "$1" "$2" "$3" "remote"
 }
 
 #
-# Asynchronously writes the remote version of dependency $3 of manager $2 in cache
-# Async cache MUST listen to fifo $1
+# Returns the version (type $4) of dependency $2 of manager $1
+# With cache
 #
-core.package.async.version.remote() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
+__core.package.version() {
+  local manager="$1"
+  local package="$2"
+  local write_cache="$3"
+  local version_type="$4"
+  local cmd="managers.${manager}.package.version.${version_type} $package"
 
-  cache.async.write "$fifo" "core_package_version_remote__${manager}__${package}" "$("core.package.version.remote" "$manager" "$package" false)"
+  string.is_empty "$write_cache" && write_cache=true
+  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd"
 }
 

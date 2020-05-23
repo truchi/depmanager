@@ -237,6 +237,17 @@ cache.set() {
 }
 
 #
+# Creates fifo $1
+#
+cache.async.init() {
+  local fifo="$1"
+
+  # Creates new fifo
+  [ -p "$fifo" ] && rm "$fifo"
+  mknod "$fifo" p
+}
+
+#
 # Write value $3 in fifo $1 for cache key $2
 #
 cache.async.write() {
@@ -248,7 +259,7 @@ cache.async.write() {
 }
 
 #
-# Reads fifo named $1, $2 times, and writes data in cache
+# Creates and reads fifo named $1, $2 times, and writes data in cache
 #
 cache.async.listen() {
   local fifo="$1"
@@ -878,9 +889,9 @@ core.manager.is_ignored() {
 #
 core.manager.exists() {
   local manager="$1"
-  local write_cache
-  write_cache=$(core.manager.is_system "$manager" && echo true || echo false)
+  local write_cache=false
 
+  core.manager.is_system "$manager" && write_cache=true
   cache "core_manager_exists__$manager" true "$write_cache" "managers.${manager}.exists"
 }
 
@@ -892,49 +903,43 @@ core.manager.version() {
   local manager="$1"
   local write_cache="$2"
 
-  "$write_cache" && write_cache=true
+  string.is_empty "$write_cache" && write_cache=true
   cache "core_manager_version__$manager" true "$write_cache" "managers.${manager}.version"
 }
 
 #
-# Asynchronously writes the version of manager $2 in cache
-# Async cache MUST listen fifo to $1
-#
-core.manager.async.version() {
-  local fifo="$1"
-  local manager="$2"
-
-  cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)"
-}
-
-#
-# Asynchronously writes the manager $2 version and packages versions (local/remote) in cache
+# Asynchronously writes the manager $1 version and packages versions (local/remote) in cache
 #
 core.manager.async.versions() {
   local manager="$1"
   local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
 
-  # Creates new fifo
-  [ -p "$fifo" ] && rm "$fifo"
-  mknod "$fifo" p
+  # Init async cache
+  cache.async.init "$fifo"
 
   # Get manager version asynchronously
-  core.manager.async.version "$fifo" "$manager" &
+  (cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)") &
 
-  # Writes CSV cache
+  # Write CSV cache
   core.csv.get "$manager" > /dev/null
 
   # For all manager's packages
   local i=0
   while IFS=, read -ra line; do
     local package=${line[0]}
-    # Get package versions asynchronously
-    core.package.async.version.local  "$fifo" "$manager" "$package" &
-    core.package.async.version.remote "$fifo" "$manager" "$package" &
+
+    # Asynchronously write versions in async cache
+    (cache.async.write "$fifo" \
+        "core_package_version_local__${manager}__${package}" \
+        "$(core.package.version.local "$manager" "$package" false)") &
+    (cache.async.write "$fifo" \
+        "core_package_version_remote__${manager}__${package}" \
+        "$(core.package.version.remote "$manager" "$package" false)") &
+
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
-  # Listen to fifo
+  # Listen to async cache fifo
   cache.async.listen "$fifo" $((i * 2 + 1))
 }
 
@@ -1022,25 +1027,7 @@ core.package.install() {
 # With cache
 #
 core.package.version.local() {
-  local manager="$1"
-  local package="$2"
-  local write_cache="$3"
-
-  local cmd="managers.${manager}.package.version.local $package"
-  string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_local__${manager}__${package}" true "$write_cache" "$cmd"
-}
-
-#
-# Asynchronously writes the local version of dependency $3 of manager $2 in cache
-# Async cache MUST listen to fifo $1
-#
-core.package.async.version.local() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
-
-  cache.async.write "$fifo" "core_package_version_local__${manager}__${package}" "$("core.package.version.local" "$manager" "$package" false)"
+  __core.package.version "$1" "$2" "$3" "local"
 }
 
 #
@@ -1048,25 +1035,22 @@ core.package.async.version.local() {
 # With cache
 #
 core.package.version.remote() {
-  local manager="$1"
-  local package="$2"
-  local write_cache="$3"
-
-  local cmd="managers.${manager}.package.version.remote $package"
-  string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_remote__${manager}__${package}" true "$write_cache" "$cmd"
+  __core.package.version "$1" "$2" "$3" "remote"
 }
 
 #
-# Asynchronously writes the remote version of dependency $3 of manager $2 in cache
-# Async cache MUST listen to fifo $1
+# Returns the version (type $4) of dependency $2 of manager $1
+# With cache
 #
-core.package.async.version.remote() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
+__core.package.version() {
+  local manager="$1"
+  local package="$2"
+  local write_cache="$3"
+  local version_type="$4"
+  local cmd="managers.${manager}.package.version.${version_type} $package"
 
-  cache.async.write "$fifo" "core_package_version_remote__${manager}__${package}" "$("core.package.version.remote" "$manager" "$package" false)"
+  string.is_empty "$write_cache" && write_cache=true
+  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd"
 }
 
 #
@@ -1611,11 +1595,11 @@ main() {
   # core.manager.system
 
   time core.manager.async.versions "apt"
-  echo "cache length ${#__cache[@]}"
 
-  # for i in "${!__cache[@]}"; do
-    # echo "$i :::: ${__cache[$i]}"
-  # done
+  for i in "${!__cache[@]}"; do
+    echo "$i :::: ${__cache[$i]}"
+  done
+  echo "cache length ${#__cache[@]}"
   exit
 
   if [[ "$COMMAND" == "interactive" ]]; then

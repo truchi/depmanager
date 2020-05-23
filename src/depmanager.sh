@@ -172,11 +172,11 @@ main() {
   # core.manager.system
 
   time core.manager.async.versions "apt"
-  echo "cache length ${#__cache[@]}"
 
-  # for i in "${!__cache[@]}"; do
-    # echo "$i :::: ${__cache[$i]}"
-  # done
+  for i in "${!__cache[@]}"; do
+    echo "$i :::: ${__cache[$i]}"
+  done
+  echo "cache length ${#__cache[@]}"
   exit
 
   if [[ "$COMMAND" == "interactive" ]]; then

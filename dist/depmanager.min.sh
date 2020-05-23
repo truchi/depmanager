@@ -169,6 +169,13 @@ cache.set() {
   __cache[__${1}__code]="$3"
 }
 
+cache.async.init() {
+  local fifo="$1"
+
+  [ -p "$fifo" ] && rm "$fifo"
+  mknod "$fifo" p
+}
+
 cache.async.write() {
   local fifo="$1"
   local key="$2"
@@ -717,9 +724,9 @@ core.manager.is_ignored() {
 
 core.manager.exists() {
   local manager="$1"
-  local write_cache
-  write_cache=$(core.manager.is_system "$manager" && echo true || echo false)
+  local write_cache=false
 
+  core.manager.is_system "$manager" && write_cache=true
   cache "core_manager_exists__$manager" true "$write_cache" "managers.${manager}.exists"
 }
 
@@ -727,33 +734,31 @@ core.manager.version() {
   local manager="$1"
   local write_cache="$2"
 
-  "$write_cache" && write_cache=true
+  string.is_empty "$write_cache" && write_cache=true
   cache "core_manager_version__$manager" true "$write_cache" "managers.${manager}.version"
-}
-
-core.manager.async.version() {
-  local fifo="$1"
-  local manager="$2"
-
-  cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)"
 }
 
 core.manager.async.versions() {
   local manager="$1"
   local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
 
-  [ -p "$fifo" ] && rm "$fifo"
-  mknod "$fifo" p
+  cache.async.init "$fifo"
 
-  core.manager.async.version "$fifo" "$manager" &
+  (cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)") &
 
   core.csv.get "$manager" > /dev/null
 
   local i=0
   while IFS=, read -ra line; do
     local package=${line[0]}
-    core.package.async.version.local  "$fifo" "$manager" "$package" &
-    core.package.async.version.remote "$fifo" "$manager" "$package" &
+
+    (cache.async.write "$fifo" \
+        "core_package_version_local__${manager}__${package}" \
+        "$(core.package.version.local "$manager" "$package" false)") &
+    (cache.async.write "$fifo" \
+        "core_package_version_remote__${manager}__${package}" \
+        "$(core.package.version.remote "$manager" "$package" false)") &
+
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
@@ -817,39 +822,22 @@ core.package.install() {
 }
 
 core.package.version.local() {
-  local manager="$1"
-  local package="$2"
-  local write_cache="$3"
-
-  local cmd="managers.${manager}.package.version.local $package"
-  string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_local__${manager}__${package}" true "$write_cache" "$cmd"
-}
-
-core.package.async.version.local() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
-
-  cache.async.write "$fifo" "core_package_version_local__${manager}__${package}" "$("core.package.version.local" "$manager" "$package" false)"
+  __core.package.version "$1" "$2" "$3" "local"
 }
 
 core.package.version.remote() {
+  __core.package.version "$1" "$2" "$3" "remote"
+}
+
+__core.package.version() {
   local manager="$1"
   local package="$2"
   local write_cache="$3"
+  local version_type="$4"
+  local cmd="managers.${manager}.package.version.${version_type} $package"
 
-  local cmd="managers.${manager}.package.version.remote $package"
   string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_remote__${manager}__${package}" true "$write_cache" "$cmd"
-}
-
-core.package.async.version.remote() {
-  local fifo="$1"
-  local manager="$2"
-  local package="$3"
-
-  cache.async.write "$fifo" "core_package_version_remote__${manager}__${package}" "$("core.package.version.remote" "$manager" "$package" false)"
+  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd"
 }
 
 managers.apt.exists() {
@@ -1321,8 +1309,11 @@ main() {
   core.dir.resolve
 
   time core.manager.async.versions "apt"
-  echo "cache length ${#__cache[@]}"
 
+  for i in "${!__cache[@]}"; do
+    echo "$i :::: ${__cache[$i]}"
+  done
+  echo "cache length ${#__cache[@]}"
   exit
 
   if [[ "$COMMAND" == "interactive" ]]; then

@@ -40,9 +40,9 @@ core.manager.is_ignored() {
 #
 core.manager.exists() {
   local manager="$1"
-  local write_cache
-  write_cache=$(core.manager.is_system "$manager" && echo true || echo false)
+  local write_cache=false
 
+  core.manager.is_system "$manager" && write_cache=true
   cache "core_manager_exists__$manager" true "$write_cache" "managers.${manager}.exists"
 }
 
@@ -54,49 +54,43 @@ core.manager.version() {
   local manager="$1"
   local write_cache="$2"
 
-  "$write_cache" && write_cache=true
+  string.is_empty "$write_cache" && write_cache=true
   cache "core_manager_version__$manager" true "$write_cache" "managers.${manager}.version"
 }
 
 #
-# Asynchronously writes the version of manager $2 in cache
-# Async cache MUST listen fifo to $1
-#
-core.manager.async.version() {
-  local fifo="$1"
-  local manager="$2"
-
-  cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)"
-}
-
-#
-# Asynchronously writes the manager $2 version and packages versions (local/remote) in cache
+# Asynchronously writes the manager $1 version and packages versions (local/remote) in cache
 #
 core.manager.async.versions() {
   local manager="$1"
   local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
 
-  # Creates new fifo
-  [ -p "$fifo" ] && rm "$fifo"
-  mknod "$fifo" p
+  # Init async cache
+  cache.async.init "$fifo"
 
   # Get manager version asynchronously
-  core.manager.async.version "$fifo" "$manager" &
+  (cache.async.write "$fifo" "core_manager_version__$manager" "$(core.manager.version "$manager" false)") &
 
-  # Writes CSV cache
+  # Write CSV cache
   core.csv.get "$manager" > /dev/null
 
   # For all manager's packages
   local i=0
   while IFS=, read -ra line; do
     local package=${line[0]}
-    # Get package versions asynchronously
-    core.package.async.version.local  "$fifo" "$manager" "$package" &
-    core.package.async.version.remote "$fifo" "$manager" "$package" &
+
+    # Asynchronously write versions in async cache
+    (cache.async.write "$fifo" \
+        "core_package_version_local__${manager}__${package}" \
+        "$(core.package.version.local "$manager" "$package" false)") &
+    (cache.async.write "$fifo" \
+        "core_package_version_remote__${manager}__${package}" \
+        "$(core.package.version.remote "$manager" "$package" false)") &
+
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
-  # Listen to fifo
+  # Listen to async cache fifo
   cache.async.listen "$fifo" $((i * 2 + 1))
 }
 
