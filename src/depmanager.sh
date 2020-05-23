@@ -162,6 +162,14 @@ main.run() {
   done
 }
 
+test() {
+  local a="$1"
+  local b="$2"
+  local c="$3"
+
+  echo "a: $a -- b: $b -- c: $c"
+}
+
 #
 # Main
 # Parses arguments, resolves files, run specified command
@@ -171,7 +179,8 @@ main() {
   core.dir.resolve
   # core.manager.system
 
-  time core.manager.async.versions "apt"
+  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
+  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
 
   for i in "${!__cache[@]}"; do
     echo "$i :::: ${__cache[$i]}"

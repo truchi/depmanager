@@ -60,9 +60,14 @@ core.manager.version() {
 
 #
 # Asynchronously writes the manager $1 version and packages versions (local/remote) in cache
+# Runs command $2 as callback for async version calls, with $... args
 #
 core.manager.async.versions() {
   local manager="$1"
+  local cmd="$2"
+  local args=("$@")
+  args=("${args[@]:2}")
+
   local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
 
   # Init async cache
@@ -91,6 +96,6 @@ core.manager.async.versions() {
   done < <(core.csv.get "$manager")
 
   # Listen to async cache fifo
-  cache.async.listen "$fifo" $((i * 2 + 1))
+  cache.async.listen "$fifo" $((i * 2 + 1)) "$cmd" "${args[@]}"
 }
 

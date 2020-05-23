@@ -26,10 +26,14 @@ cache.async.write() {
 
 #
 # Creates and reads fifo named $1, $2 times, and writes data in cache
+# Runs command $3 after read happens, with $... args
 #
 cache.async.listen() {
   local fifo="$1"
   local count="$2"
+  local cmd="$3"
+  local args=("$@")
+  args=("${args[@]:3}")
 
   # Infinite loop (the only way to make this work properly?)
   local i=0
@@ -44,6 +48,8 @@ cache.async.listen() {
     # Read data and write in cache
     IFS=, read -r -a array <<< "$data"
     cache.set "${array[0]}" "${array[1]}" 0
+
+    string.is_empty "$cmd" || $cmd "${args[@]}"
 
     i=$((i + 1))
     (( i == count )) && break

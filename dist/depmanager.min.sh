@@ -187,6 +187,9 @@ cache.async.write() {
 cache.async.listen() {
   local fifo="$1"
   local count="$2"
+  local cmd="$3"
+  local args=("$@")
+  args=("${args[@]:3}")
 
   local i=0
   while true; do
@@ -198,6 +201,8 @@ cache.async.listen() {
 
     IFS=, read -r -a array <<< "$data"
     cache.set "${array[0]}" "${array[1]}" 0
+
+    string.is_empty "$cmd" || $cmd "${args[@]}"
 
     i=$((i + 1))
     (( i == count )) && break
@@ -740,6 +745,10 @@ core.manager.version() {
 
 core.manager.async.versions() {
   local manager="$1"
+  local cmd="$2"
+  local args=("$@")
+  args=("${args[@]:2}")
+
   local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
 
   cache.async.init "$fifo"
@@ -762,7 +771,7 @@ core.manager.async.versions() {
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
-  cache.async.listen "$fifo" $((i * 2 + 1))
+  cache.async.listen "$fifo" $((i * 2 + 1)) "$cmd" "${args[@]}"
 }
 
 core.package.exists() {
@@ -1304,11 +1313,20 @@ main.run() {
   done
 }
 
+test() {
+  local a="$1"
+  local b="$2"
+  local c="$3"
+
+  echo "a: $a -- b: $b -- c: $c"
+}
+
 main() {
   main.parse_args "$@"
   core.dir.resolve
 
-  time core.manager.async.versions "apt"
+  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
+  time core.manager.async.versions "apt" "test" "AAA AAA" "BBB BBB" "CCC CCC"
 
   for i in "${!__cache[@]}"; do
     echo "$i :::: ${__cache[$i]}"
