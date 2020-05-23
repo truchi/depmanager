@@ -28,7 +28,7 @@ managers.npm.package.is_installed() {
 #
 # Returns the local version of dependency $1
 #
-managers.npm.package.local_version() {
+managers.npm.package.version.local() {
   local npm_list
   npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
 
@@ -45,7 +45,7 @@ managers.npm.package.local_version() {
 #
 # Returns the remote version of dependency $1
 #
-managers.npm.package.remote_version() {
+managers.npm.package.version.remote() {
   local version
   version=$(npm view "$1" version 2> /dev/null)
 

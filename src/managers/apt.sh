@@ -17,7 +17,7 @@ managers.apt.version() {
 #
 # Returns the local version of dependency $1
 #
-managers.apt.package.local_version() {
+managers.apt.package.version.local() {
   local dpkg_list
   dpkg_list=$(dpkg -l "$1" 2> /dev/null)
 
@@ -43,7 +43,7 @@ managers.apt.package.local_version() {
 #
 # Returns the remote version of dependency $1
 #
-managers.apt.package.remote_version() {
+managers.apt.package.version.remote() {
   local policy
   policy=$(apt-cache policy "$1")
 

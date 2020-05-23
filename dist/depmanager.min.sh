@@ -787,9 +787,9 @@ core.package.exists() {
   local package="$2"
   local version
 
-  core.package.remote_version "$manager" "$package" > /dev/null
+  core.package.version.remote "$manager" "$package" > /dev/null
 
-  [[ $(core.package.remote_version "$manager" "$package") != "$PACKAGE_NONE" ]]
+  [[ $(core.package.version.remote "$manager" "$package") != "$PACKAGE_NONE" ]]
 }
 
 core.package.is_installed() {
@@ -797,9 +797,9 @@ core.package.is_installed() {
   local package="$2"
   local version
 
-  core.package.local_version "$manager" "$package" > /dev/null
+  core.package.version.local "$manager" "$package" > /dev/null
 
-  [[ $(core.package.local_version "$manager" "$package") != "$PACKAGE_NONE" ]]
+  [[ $(core.package.version.local "$manager" "$package") != "$PACKAGE_NONE" ]]
 }
 
 core.package.is_uptodate() {
@@ -818,8 +818,8 @@ core.package.is_uptodate() {
     return
   fi
 
-  local_version=$(core.package.local_version "$manager" "$package")
-  remote_version=$(core.package.remote_version "$manager" "$package")
+  local_version=$(core.package.version.local "$manager" "$package")
+  remote_version=$(core.package.version.remote "$manager" "$package")
 
   [[ "$local_version" == "$remote_version" ]]
 }
@@ -838,7 +838,7 @@ core.package.install() {
   core.package.install_command "$manager" "$package"
 }
 
-core.package.local_version() {
+core.package.version.local() {
   local manager="$1"
   local package="$2"
   local write_cache="$3"
@@ -848,10 +848,10 @@ core.package.local_version() {
   fi
 
   cache \
-    "core_package_local_version__${manager}__${package}" \
+    "core_package_version_local__${manager}__${package}" \
     true \
     "$write_cache" \
-    "managers.${manager}.package.local_version $package"
+    "managers.${manager}.package.version.local $package"
 }
 
 core.package.async.version.local() {
@@ -859,14 +859,14 @@ core.package.async.version.local() {
   local manager="$2"
   local package="$3"
 
-  local key="core_package_local_version__${manager}__${package}"
+  local key="core_package_version_local__${manager}__${package}"
   local version
-  version=$("core.package.local_version" "$manager" "$package" false)
+  version=$("core.package.version.local" "$manager" "$package" false)
 
   cache.async.write "$fifo" "$key" "$version"
 }
 
-core.package.remote_version() {
+core.package.version.remote() {
   local manager="$1"
   local package="$2"
   local write_cache="$3"
@@ -876,10 +876,10 @@ core.package.remote_version() {
   fi
 
   cache \
-    "core_package_remote_version__${manager}__${package}" \
+    "core_package_version_remote__${manager}__${package}" \
     true \
     "$write_cache" \
-    "managers.${manager}.package.remote_version $package"
+    "managers.${manager}.package.version.remote $package"
 }
 
 core.package.async.version.remote() {
@@ -887,9 +887,9 @@ core.package.async.version.remote() {
   local manager="$2"
   local package="$3"
 
-  local key="core_package_remote_version__${manager}__${package}"
+  local key="core_package_version_remote__${manager}__${package}"
   local version
-  version=$("core.package.remote_version" "$manager" "$package" false)
+  version=$("core.package.version.remote" "$manager" "$package" false)
 
   cache.async.write "$fifo" "$key" "$version"
 }
@@ -902,7 +902,7 @@ managers.apt.version() {
   apt --version
 }
 
-managers.apt.package.local_version() {
+managers.apt.package.version.local() {
   local dpkg_list
   dpkg_list=$(dpkg -l "$1" 2> /dev/null)
 
@@ -921,7 +921,7 @@ managers.apt.package.local_version() {
   sed 's/\S*\s*\S*\s*\(\S*\).*/\1/' <<< "$dpkg_list"
 }
 
-managers.apt.package.remote_version() {
+managers.apt.package.version.remote() {
   local policy
   policy=$(apt-cache policy "$1")
 
@@ -955,7 +955,7 @@ managers.npm.package.is_installed() {
   echo "$list" | grep "── $dependency@" >/dev/null 2>&1
 }
 
-managers.npm.package.local_version() {
+managers.npm.package.version.local() {
   local npm_list
   npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
 
@@ -967,7 +967,7 @@ managers.npm.package.local_version() {
   sed 's/.*@//' <<< "$npm_list"
 }
 
-managers.npm.package.remote_version() {
+managers.npm.package.version.remote() {
   local version
   version=$(npm view "$1" version 2> /dev/null)
 
@@ -1364,8 +1364,6 @@ main() {
 
   time core.manager.async.versions "apt"
   echo "cache length ${#__cache[@]}"
-
-
 
   exit
 
