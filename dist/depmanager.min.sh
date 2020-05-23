@@ -1080,13 +1080,14 @@ command.status.update_table() {
     local is_installed=false
     local exists=false
     local is_uptodate=false
-    local local_version_color=""
-    local remote_version_color=""
-    local level="info"
 
     [[ "$local_version"  != "$PACKAGE_NONE"   ]] && is_installed=true
     [[ "$remote_version" != "$PACKAGE_NONE"   ]] && exists=true
     [[ "$local_version"  == "$remote_version" ]] && is_uptodate=true
+
+    local local_version_color=""
+    local remote_version_color=""
+    local level="info"
 
     $local_version_done  && ! $is_installed && local_version_color="$RED"  && level="error"
     $remote_version_done && ! $exists       && remote_version_color="$RED" && level="error"
@@ -1102,6 +1103,7 @@ command.status.update_table() {
     messages+=("${local_version_color}$local_version${NO_COLOR}")
     messages+=("${remote_version_color}$remote_version${NO_COLOR}")
     levels+=("$level")
+
     i=$((i + 1))
   done < <(core.csv.get "$manager")
 
