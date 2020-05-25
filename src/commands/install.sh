@@ -12,8 +12,8 @@ command.install() {
 
   local i=1
   while IFS=, read -ra line; do
-    local dependency=${line[0]}
-    print.info "${BOLD}$dependency${NO_COLOR} ..."
+    local package=${line[0]}
+    print.info "${BOLD}$package${NO_COLOR} ..."
 
     local local_version
     local remote_version
@@ -21,29 +21,29 @@ command.install() {
     local is_installed
     local is_uptodate
 
-    core.package.remote_version "$manager" "$dependency" > /dev/null
-    remote_version=$(core.package.remote_version "$manager" "$dependency")
-    exists=$(core.package.exists "$manager" "$dependency" && echo true || echo false)
+    core.package.remote_version "$manager" "$package" > /dev/null
+    remote_version=$(core.package.remote_version "$manager" "$package")
+    exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
 
     if ! $exists; then
       tput cuu1
       tput el
-      print.warning "${BOLD}$dependency${NO_COLOR} do not exists"
+      print.warning "${BOLD}$package${NO_COLOR} do not exists"
       continue
     fi
 
-    core.package.local_version "$manager" "$dependency" > /dev/null
-    local_version=$(core.package.local_version "$manager" "$dependency")
-    is_uptodate=$(core.package.is_uptodate "$manager" "$dependency" && echo true || echo false)
+    core.package.local_version "$manager" "$package" > /dev/null
+    local_version=$(core.package.local_version "$manager" "$package")
+    is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
 
     tput cuu1
     tput el
     if $is_uptodate; then
-      print.success "${BOLD}$dependency${NO_COLOR} ($local_version) is up-to-date"
+      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
     else
-      print.info "${BOLD}$dependency${NO_COLOR} ($local_version) is not up-to-date, installing"
+      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date, installing"
       local install_command
-      install_command=$(core.package.install_command "$manager" "$dependency")
+      install_command=$(core.package.install_command "$manager" "$package")
       print.info "Running ${BLUE}$install_command${NO_COLOR}"
     fi
 

@@ -5,7 +5,7 @@
 #
 # # depmanager
 #
-# Checks, diffs, installs or updates your dependencies.
+# Checks, diffs, installs or updates your packages.
 # System, NodeJS, Rust.
 #
 # # Dependencies
@@ -520,7 +520,7 @@ print.help() {
   ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
-  ${WHITE}Manages your dependencies.
+  ${WHITE}Manages your packages.
 
   List packages you depend on in CSV files.
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
@@ -965,7 +965,7 @@ core.manager.async.versions() {
 }
 
 #
-# Returns true if dependency $2 of manager $1 exists, false otherwise
+# Returns true if package $2 of manager $1 exists, false otherwise
 #
 core.package.exists() {
   local manager="$1"
@@ -980,7 +980,7 @@ core.package.exists() {
 }
 
 #
-# Returns true if dependency $2 of manager $1 is installed, false otherwise
+# Returns true if package $2 of manager $1 is installed, false otherwise
 #
 core.package.is_installed() {
   local manager="$1"
@@ -1024,7 +1024,7 @@ core.package.is_uptodate() {
 }
 
 #
-# Return the install command for dependency $2 of manager $1
+# Return the install command for package $2 of manager $1
 #
 core.package.install_command() {
   local manager="$1"
@@ -1034,7 +1034,7 @@ core.package.install_command() {
 }
 
 #
-# Installs dependency $2 of manager $1
+# Installs package $2 of manager $1
 #
 core.package.install() {
   local manager="$1"
@@ -1044,7 +1044,7 @@ core.package.install() {
 }
 
 #
-# Returns the local version of dependency $2 of manager $1
+# Returns the local version of package $2 of manager $1
 # With cache
 #
 core.package.version.local() {
@@ -1052,7 +1052,7 @@ core.package.version.local() {
 }
 
 #
-# Returns the remote version of dependency $2 of manager $1
+# Returns the remote version of package $2 of manager $1
 # With cache
 #
 core.package.version.remote() {
@@ -1060,7 +1060,7 @@ core.package.version.remote() {
 }
 
 #
-# Returns the version (type $4) of dependency $2 of manager $1
+# Returns the version (type $4) of package $2 of manager $1
 # With cache
 #
 __core.package.version() {
@@ -1089,7 +1089,7 @@ managers.apt.version() {
 }
 
 #
-# Returns the local version of dependency $1
+# Returns the local version of package $1
 #
 managers.apt.package.version.local() {
   local dpkg_list
@@ -1115,7 +1115,7 @@ managers.apt.package.version.local() {
 }
 
 #
-# Returns the remote version of dependency $1
+# Returns the remote version of package $1
 #
 managers.apt.package.version.remote() {
   local policy
@@ -1155,18 +1155,18 @@ managers.npm.version() {
 }
 
 #
-# Returns true if dependency $1 is installed, false otherwise
+# Returns true if package $1 is installed, false otherwise
 #
 managers.npm.package.is_installed() {
-  local dependency=$1
+  local package=$1
   local list
-  list=$(npm list --global --depth 0 "$dependency")
+  list=$(npm list --global --depth 0 "$package")
 
-  echo "$list" | grep "── $dependency@" >/dev/null 2>&1
+  echo "$list" | grep "── $package@" >/dev/null 2>&1
 }
 
 #
-# Returns the local version of dependency $1
+# Returns the local version of package $1
 #
 managers.npm.package.version.local() {
   local npm_list
@@ -1183,7 +1183,7 @@ managers.npm.package.version.local() {
 }
 
 #
-# Returns the remote version of dependency $1
+# Returns the remote version of package $1
 #
 managers.npm.package.version.remote() {
   local version
@@ -1436,8 +1436,8 @@ command.install() {
 
   local i=1
   while IFS=, read -ra line; do
-    local dependency=${line[0]}
-    print.info "${BOLD}$dependency${NO_COLOR} ..."
+    local package=${line[0]}
+    print.info "${BOLD}$package${NO_COLOR} ..."
 
     local local_version
     local remote_version
@@ -1445,29 +1445,29 @@ command.install() {
     local is_installed
     local is_uptodate
 
-    core.package.remote_version "$manager" "$dependency" > /dev/null
-    remote_version=$(core.package.remote_version "$manager" "$dependency")
-    exists=$(core.package.exists "$manager" "$dependency" && echo true || echo false)
+    core.package.remote_version "$manager" "$package" > /dev/null
+    remote_version=$(core.package.remote_version "$manager" "$package")
+    exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
 
     if ! $exists; then
       tput cuu1
       tput el
-      print.warning "${BOLD}$dependency${NO_COLOR} do not exists"
+      print.warning "${BOLD}$package${NO_COLOR} do not exists"
       continue
     fi
 
-    core.package.local_version "$manager" "$dependency" > /dev/null
-    local_version=$(core.package.local_version "$manager" "$dependency")
-    is_uptodate=$(core.package.is_uptodate "$manager" "$dependency" && echo true || echo false)
+    core.package.local_version "$manager" "$package" > /dev/null
+    local_version=$(core.package.local_version "$manager" "$package")
+    is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
 
     tput cuu1
     tput el
     if $is_uptodate; then
-      print.success "${BOLD}$dependency${NO_COLOR} ($local_version) is up-to-date"
+      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
     else
-      print.info "${BOLD}$dependency${NO_COLOR} ($local_version) is not up-to-date, installing"
+      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date, installing"
       local install_command
-      install_command=$(core.package.install_command "$manager" "$dependency")
+      install_command=$(core.package.install_command "$manager" "$package")
       print.info "Running ${BLUE}$install_command${NO_COLOR}"
     fi
 

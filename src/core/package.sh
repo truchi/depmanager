@@ -3,7 +3,7 @@
 . ""
 
 #
-# Returns true if dependency $2 of manager $1 exists, false otherwise
+# Returns true if package $2 of manager $1 exists, false otherwise
 #
 core.package.exists() {
   local manager="$1"
@@ -18,7 +18,7 @@ core.package.exists() {
 }
 
 #
-# Returns true if dependency $2 of manager $1 is installed, false otherwise
+# Returns true if package $2 of manager $1 is installed, false otherwise
 #
 core.package.is_installed() {
   local manager="$1"
@@ -62,7 +62,7 @@ core.package.is_uptodate() {
 }
 
 #
-# Return the install command for dependency $2 of manager $1
+# Return the install command for package $2 of manager $1
 #
 core.package.install_command() {
   local manager="$1"
@@ -72,7 +72,7 @@ core.package.install_command() {
 }
 
 #
-# Installs dependency $2 of manager $1
+# Installs package $2 of manager $1
 #
 core.package.install() {
   local manager="$1"
@@ -82,7 +82,7 @@ core.package.install() {
 }
 
 #
-# Returns the local version of dependency $2 of manager $1
+# Returns the local version of package $2 of manager $1
 # With cache
 #
 core.package.version.local() {
@@ -90,7 +90,7 @@ core.package.version.local() {
 }
 
 #
-# Returns the remote version of dependency $2 of manager $1
+# Returns the remote version of package $2 of manager $1
 # With cache
 #
 core.package.version.remote() {
@@ -98,7 +98,7 @@ core.package.version.remote() {
 }
 
 #
-# Returns the version (type $4) of dependency $2 of manager $1
+# Returns the version (type $4) of package $2 of manager $1
 # With cache
 #
 __core.package.version() {

@@ -100,7 +100,7 @@ print.help() {
   ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
-  ${WHITE}Manages your dependencies.
+  ${WHITE}Manages your packages.
 
   List packages you depend on in CSV files.
   Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}

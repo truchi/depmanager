@@ -15,7 +15,7 @@ managers.apt.version() {
 }
 
 #
-# Returns the local version of dependency $1
+# Returns the local version of package $1
 #
 managers.apt.package.version.local() {
   local dpkg_list
@@ -41,7 +41,7 @@ managers.apt.package.version.local() {
 }
 
 #
-# Returns the remote version of dependency $1
+# Returns the remote version of package $1
 #
 managers.apt.package.version.remote() {
   local policy

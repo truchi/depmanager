@@ -5,7 +5,7 @@
 #
 # # depmanager
 #
-# Checks, diffs, installs or updates your dependencies.
+# Checks, diffs, installs or updates your packages.
 # System, NodeJS, Rust.
 #
 # # Dependencies
