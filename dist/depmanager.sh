@@ -1400,6 +1400,7 @@ command.status.update_table() {
     tput cuu1
   done
 
+  # Print!
   table.print "$title" headers[@] levels[@] messages[@]
   last_update=$(date +%s)
 }
