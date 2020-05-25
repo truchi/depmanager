@@ -900,6 +900,8 @@ managers.apt.package.version.remote() {
 
 managers.apt.package.install_command() {
   local package="$1"
+  local yes=false
+  local quiet=false
 
   echo "sudo apt install $package"
 }
@@ -942,6 +944,14 @@ managers.npm.package.version.remote() {
   fi
 
   echo "$version"
+}
+
+managers.apt.package.install_command() {
+  local package="$1"
+  local yes=false
+  local quiet=false
+
+  echo "sudo apt install $package"
 }
 
 command.interactive() {
@@ -1162,8 +1172,8 @@ command.install() {
     local is_installed
     local is_uptodate
 
-    core.package.remote_version "$manager" "$package" > /dev/null
-    remote_version=$(core.package.remote_version "$manager" "$package")
+    core.package.version.remote "$manager" "$package" > /dev/null
+    remote_version=$(core.package.version.remote "$manager" "$package")
     exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
 
     if ! $exists; then
@@ -1173,8 +1183,8 @@ command.install() {
       continue
     fi
 
-    core.package.local_version "$manager" "$package" > /dev/null
-    local_version=$(core.package.local_version "$manager" "$package")
+    core.package.version.local "$manager" "$package" > /dev/null
+    local_version=$(core.package.version.local "$manager" "$package")
     is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
 
     tput cuu1

@@ -81,7 +81,7 @@ command.status.update_table() {
   headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
   headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
-  # Clear screen
+  # Clear screen (status should never be quiet)
   for i in $(seq 1 "$remove"); do
     tput cuu1
   done

@@ -6,6 +6,7 @@ command.interactive() {
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
   length=$(array.length managers[@])
 
+  # Ask for CSVs
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
@@ -32,7 +33,6 @@ command.interactive() {
     local first=true
     while $first || (! $is_ignored && ! $exists); do
       local message
-      local color
       local new_path
 
       # On the first run, print error if supplied path does not exists
@@ -52,8 +52,7 @@ command.interactive() {
       exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
       # Redraw
-      tput cuu1
-      tput el
+      print.clear.line
       if $is_ignored; then
         print.info "$message ${BLUE}$path${NO_COLOR}"
       elif $exists; then
@@ -86,8 +85,7 @@ command.interactive() {
   fi
 
   # Redraw with answer
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
   # Ask for flags
@@ -108,9 +106,8 @@ command.interactive() {
     if [[ "$flags" =~ [yY] ]]; then YES=true     ; answer+="yes "     ; fi
     if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; answer+="simulate "; fi
 
-    # Redraw with answer
-    tput cuu1
-    tput el
+    # Redraw with answer (interactive should neven be quiet)
+    print.clear.line
     print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
   fi
 }

@@ -58,3 +58,15 @@ managers.npm.package.version.remote() {
   # Return version
   echo "$version"
 }
+
+#
+# Returns the installation command for package $1
+#
+managers.apt.package.install_command() {
+  local package="$1"
+  local yes=false
+  local quiet=false
+
+  echo "sudo apt install $package"
+}
+

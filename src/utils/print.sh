@@ -53,8 +53,7 @@ print.confirm() {
   fi
 
   # Redraw with answer
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
@@ -79,6 +78,11 @@ print.fake.input() {
   local answer="$2"
 
   echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
+}
+
+print.clear.line() {
+  tput cuu1
+  tput el
 }
 
 print.version() {
