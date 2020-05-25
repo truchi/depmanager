@@ -70,7 +70,7 @@ main.parse_args() {
       COMMAND="update";;
     *)
       print.error "Unknown command: $1"
-      exit
+      exit 1
   esac
 
   # Get options
@@ -95,7 +95,7 @@ main.parse_args() {
       -*)
         if string.equals "$2" "-"; then
           print.error "There might be an error in your command, found a lone '-'"
-          exit
+          exit 1
         fi
 
         local flags
@@ -109,13 +109,13 @@ main.parse_args() {
 
         if ! string.is_empty "$non_flags"; then
           print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
-          exit
+          exit 1
         fi
 
         shift;;
       *)
         print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
-        exit
+        exit 1
     esac
   done
 }
