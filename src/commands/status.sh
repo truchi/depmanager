@@ -43,9 +43,9 @@ command.status.update_table() {
     local exists=false
     local is_uptodate=false
 
-    [[ "$local_version"  != "$PACKAGE_NONE"   ]] && is_installed=true
-    [[ "$remote_version" != "$PACKAGE_NONE"   ]] && exists=true
-    [[ "$local_version"  == "$remote_version" ]] && is_uptodate=true
+    $local_version_done  && core.package.is_installed "$manager" "$package" && is_installed=true
+    $remote_version_done && core.package.exists       "$manager" "$package" && exists=true
+    $both_versions_done  && core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
 
     # Prepare printing vars
     local local_version_color=""
