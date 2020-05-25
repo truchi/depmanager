@@ -62,9 +62,11 @@ managers.apt.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
-  local quiet=false
+  local yes=""
+  local quiet=""
+  $QUIET && quiet="--quiet"
+  $YES && yes="--yes"
 
-  echo "sudo apt install $package"
+  echo "sudo apt install $package $quiet $yes"
 }
 

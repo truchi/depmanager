@@ -363,8 +363,7 @@ print.confirm() {
     answer="yes"
   fi
 
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
@@ -388,6 +387,11 @@ print.fake.input() {
   local answer="$2"
 
   echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
+}
+
+print.clear.line() {
+  tput cuu1
+  tput el
 }
 
 print.version() {
@@ -900,10 +904,12 @@ managers.apt.package.version.remote() {
 
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
-  local quiet=false
+  local yes=""
+  local quiet=""
+  $QUIET && quiet="--quiet"
+  $YES && yes="--yes"
 
-  echo "sudo apt install $package"
+  echo "sudo apt install $package $quiet $yes"
 }
 
 managers.npm.exists() {
@@ -948,10 +954,10 @@ managers.npm.package.version.remote() {
 
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
   local quiet=false
+  $QUIET && quiet="--quiet"
 
-  echo "sudo apt install $package"
+  echo "npm install $package --global --no-progress $quiet"
 }
 
 command.interactive() {
@@ -985,7 +991,6 @@ command.interactive() {
     local first=true
     while $first || (! $is_ignored && ! $exists); do
       local message
-      local color
       local new_path
 
       if $first && ! $is_ignored && ! $exists; then
@@ -1001,8 +1006,7 @@ command.interactive() {
       is_ignored=$(core.manager.is_ignored "$manager" && echo true || echo false)
       exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
-      tput cuu1
-      tput el
+      print.clear.line
       if $is_ignored; then
         print.info "$message ${BLUE}$path${NO_COLOR}"
       elif $exists; then
@@ -1032,8 +1036,7 @@ command.interactive() {
   else                             COMMAND="status"
   fi
 
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
   if [[ $COMMAND != "status" ]]; then
@@ -1052,8 +1055,7 @@ command.interactive() {
     if [[ "$flags" =~ [yY] ]]; then YES=true     ; answer+="yes "     ; fi
     if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; answer+="simulate "; fi
 
-    tput cuu1
-    tput el
+    print.clear.line
     print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
   fi
 }
@@ -1177,9 +1179,8 @@ command.install() {
     exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
 
     if ! $exists; then
-      tput cuu1
-      tput el
-      print.warning "${BOLD}$package${NO_COLOR} do not exists"
+      $QUIET || print.clear.line
+      print.error "${BOLD}$package${NO_COLOR} do not exists"
       continue
     fi
 
@@ -1187,8 +1188,7 @@ command.install() {
     local_version=$(core.package.version.local "$manager" "$package")
     is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
 
-    tput cuu1
-    tput el
+    $QUIET || print.clear.line
     if $is_uptodate; then
       print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
     else
@@ -1233,7 +1233,7 @@ main.parse_args() {
       COMMAND="update";;
     *)
       print.error "Unknown command: $1"
-      exit
+      exit 1
   esac
 
   while [[ $# -gt 1 ]]; do
@@ -1257,7 +1257,7 @@ main.parse_args() {
       -*)
         if string.equals "$2" "-"; then
           print.error "There might be an error in your command, found a lone '-'"
-          exit
+          exit 1
         fi
 
         local flags
@@ -1271,13 +1271,13 @@ main.parse_args() {
 
         if ! string.is_empty "$non_flags"; then
           print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
-          exit
+          exit 1
         fi
 
         shift;;
       *)
         print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
-        exit
+        exit 1
     esac
   done
 }

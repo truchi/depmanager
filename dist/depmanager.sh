@@ -473,8 +473,7 @@ print.confirm() {
   fi
 
   # Redraw with answer
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
@@ -499,6 +498,11 @@ print.fake.input() {
   local answer="$2"
 
   echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
+}
+
+print.clear.line() {
+  tput cuu1
+  tput el
 }
 
 print.version() {
@@ -1136,10 +1140,12 @@ managers.apt.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
-  local quiet=false
+  local yes=""
+  local quiet=""
+  $QUIET && quiet="--quiet"
+  $YES && yes="--yes"
 
-  echo "sudo apt install $package"
+  echo "sudo apt install $package $quiet $yes"
 }
 
 #
@@ -1206,10 +1212,10 @@ managers.npm.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
   local quiet=false
+  $QUIET && quiet="--quiet"
 
-  echo "sudo apt install $package"
+  echo "npm install $package --global --no-progress $quiet"
 }
 
 command.interactive() {
@@ -1218,6 +1224,7 @@ command.interactive() {
   managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
   length=$(array.length managers[@])
 
+  # Ask for CSVs
   for i in $(seq 0 $((length - 1))); do
     local manager="${managers[$i]}"
 
@@ -1244,7 +1251,6 @@ command.interactive() {
     local first=true
     while $first || (! $is_ignored && ! $exists); do
       local message
-      local color
       local new_path
 
       # On the first run, print error if supplied path does not exists
@@ -1264,8 +1270,7 @@ command.interactive() {
       exists=$(core.csv.exists "$manager" false && echo true || echo false)
 
       # Redraw
-      tput cuu1
-      tput el
+      print.clear.line
       if $is_ignored; then
         print.info "$message ${BLUE}$path${NO_COLOR}"
       elif $exists; then
@@ -1298,8 +1303,7 @@ command.interactive() {
   fi
 
   # Redraw with answer
-  tput cuu1
-  tput el
+  print.clear.line
   print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
 
   # Ask for flags
@@ -1320,9 +1324,8 @@ command.interactive() {
     if [[ "$flags" =~ [yY] ]]; then YES=true     ; answer+="yes "     ; fi
     if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; answer+="simulate "; fi
 
-    # Redraw with answer
-    tput cuu1
-    tput el
+    # Redraw with answer (interactive should neven be quiet)
+    print.clear.line
     print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
   fi
 }
@@ -1408,7 +1411,7 @@ command.status.update_table() {
   headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
   headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
-  # Clear screen
+  # Clear screen (status should never be quiet)
   for i in $(seq 1 "$remove"); do
     tput cuu1
   done
@@ -1463,9 +1466,8 @@ command.install() {
     exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
 
     if ! $exists; then
-      tput cuu1
-      tput el
-      print.warning "${BOLD}$package${NO_COLOR} do not exists"
+      $QUIET || print.clear.line
+      print.error "${BOLD}$package${NO_COLOR} do not exists"
       continue
     fi
 
@@ -1473,8 +1475,7 @@ command.install() {
     local_version=$(core.package.version.local "$manager" "$package")
     is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
 
-    tput cuu1
-    tput el
+    $QUIET || print.clear.line
     if $is_uptodate; then
       print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
     else
@@ -1524,7 +1525,7 @@ main.parse_args() {
       COMMAND="update";;
     *)
       print.error "Unknown command: $1"
-      exit
+      exit 1
   esac
 
   # Get options
@@ -1549,7 +1550,7 @@ main.parse_args() {
       -*)
         if string.equals "$2" "-"; then
           print.error "There might be an error in your command, found a lone '-'"
-          exit
+          exit 1
         fi
 
         local flags
@@ -1563,13 +1564,13 @@ main.parse_args() {
 
         if ! string.is_empty "$non_flags"; then
           print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
-          exit
+          exit 1
         fi
 
         shift;;
       *)
         print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
-        exit
+        exit 1
     esac
   done
 }

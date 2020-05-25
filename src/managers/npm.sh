@@ -64,9 +64,9 @@ managers.npm.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=false
   local quiet=false
+  $QUIET && quiet="--quiet"
 
-  echo "sudo apt install $package"
+  echo "npm install $package --global --no-progress $quiet"
 }
 
