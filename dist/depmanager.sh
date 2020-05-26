@@ -460,10 +460,20 @@ print.custom() {
 }
 
 print.confirm() {
-  # Auto confirm if flag is given
-  $YES && return
+  local msg="${BOLD}$1${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+  local auto_answer="$2"
 
-  local msg="${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+  if helpers.is_set "$auto_answer"; then
+    print.fake.input "$msg" "${BOLD}${YELLOW}$auto_answer${NO_COLOR}"
+    [[ "$auto_answer" == "yes" ]]
+    return
+  fi
+
+  if $YES; then
+    print.fake.input "$msg" "${BOLD}${YELLOW}yes${NO_COLOR}"
+    true
+    return
+  fi
 
   # Prompt confirmation message
   local reply
@@ -487,25 +497,23 @@ print.confirm() {
   $confirmed
 }
 
+# MUST NOT be called when $QUIET or ! $IN_TERMINAL
 print.input() {
   local n="$1"
   local message="$2"
 
   # Prompt input
   if ((n == 0)); then
-    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -r
+    read -p "$(print.fake.input "$message")" -r
   else
-    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -n "$n" -r
+    read -p "$(print.fake.input "$message")" -n "$n" -r
   fi
 
   echo "$REPLY"
 }
 
 print.fake.input() {
-  local message="$1"
-  local answer="$2"
-
-  echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
+  print.custom "${YELLOW}${BOLD}?${NO_COLOR} $1 $2"
 }
 
 print.clear.line() {
@@ -1142,7 +1150,7 @@ core.package.install() {
   local msg="${BOLD}Run \`${YELLOW}${cmd[*]}${NO_COLOR}\`${BOLD}?${NO_COLOR}"
 
   if $SIMULATE; then
-    print.confirm "$msg" <<< "n"
+    print.confirm "$msg" "no"
     return
   fi
 
@@ -1674,6 +1682,8 @@ main() {
     print.separator
   fi
 
+  # Force yes when not running in a terminal
+  ! $IN_TERMINAL && YES=true
   # Simulate implies !quiet
   $SIMULATE && QUIET=false
   # Quiet implies yes

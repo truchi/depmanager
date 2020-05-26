@@ -104,7 +104,7 @@ core.package.install() {
   local msg="${BOLD}Run \`${YELLOW}${cmd[*]}${NO_COLOR}\`${BOLD}?${NO_COLOR}"
 
   if $SIMULATE; then
-    print.confirm "$msg" <<< "n"
+    print.confirm "$msg" "no"
     return
   fi
 

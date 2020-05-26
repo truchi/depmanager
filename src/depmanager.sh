@@ -188,6 +188,8 @@ main() {
     print.separator
   fi
 
+  # Force yes when not running in a terminal
+  ! $IN_TERMINAL && YES=true
   # Simulate implies !quiet
   $SIMULATE && QUIET=false
   # Quiet implies yes

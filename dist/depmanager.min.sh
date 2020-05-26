@@ -355,9 +355,20 @@ print.custom() {
 }
 
 print.confirm() {
-  $YES && return
+  local msg="${BOLD}$1${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+  local auto_answer="$2"
 
-  local msg="${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+  if helpers.is_set "$auto_answer"; then
+    print.fake.input "$msg" "${BOLD}${YELLOW}$auto_answer${NO_COLOR}"
+    [[ "$auto_answer" == "yes" ]]
+    return
+  fi
+
+  if $YES; then
+    print.fake.input "$msg" "${BOLD}${YELLOW}yes${NO_COLOR}"
+    true
+    return
+  fi
 
   local reply
   reply=$(print.input 1 "$msg")
@@ -382,19 +393,16 @@ print.input() {
   local message="$2"
 
   if ((n == 0)); then
-    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -r
+    read -p "$(print.fake.input "$message")" -r
   else
-    read -p "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message " -n "$n" -r
+    read -p "$(print.fake.input "$message")" -n "$n" -r
   fi
 
   echo "$REPLY"
 }
 
 print.fake.input() {
-  local message="$1"
-  local answer="$2"
-
-  echo "$(print.date) ${YELLOW}${BOLD}?${NO_COLOR} $message $answer"
+  print.custom "${YELLOW}${BOLD}?${NO_COLOR} $1 $2"
 }
 
 print.clear.line() {
@@ -930,7 +938,7 @@ core.package.install() {
   local msg="${BOLD}Run \`${YELLOW}${cmd[*]}${NO_COLOR}\`${BOLD}?${NO_COLOR}"
 
   if $SIMULATE; then
-    print.confirm "$msg" <<< "n"
+    print.confirm "$msg" "no"
     return
   fi
 
@@ -1368,6 +1376,7 @@ main() {
     print.separator
   fi
 
+  ! $IN_TERMINAL && YES=true
   $SIMULATE && QUIET=false
   $QUIET && YES=true
 
