@@ -108,10 +108,6 @@ core.package.install() {
     return
   fi
 
-  # local log_file="$DEPMANAGER_LOG_DIR/${manager}/${package}"
-  # mkdir -p "$log_file"
-  # touch "$log_file"
-
   if print.confirm "$msg"; then
     ${cmd[*]}
   fi
