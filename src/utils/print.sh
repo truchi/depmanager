@@ -37,9 +37,11 @@ print.confirm() {
   # Auto confirm if flag is given
   $YES && return
 
+  local msg="${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+
   # Prompt confirmation message
   local reply
-  reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
+  reply=$(print.input 1 "$msg")
 
   # Carriage return if user did not press enter
   [[ ! "$reply" =~ ^$ ]] && echo
@@ -54,7 +56,7 @@ print.confirm() {
 
   # Redraw with answer
   print.clear.line
-  print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
+  print.fake.input "$msg" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
 }
@@ -181,7 +183,7 @@ print.csvs_info() {
 }
 
 print.pre_run_confirm() {
-  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip${NO_COLOR}: run with --simulate first"
+  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip:${NO_COLOR} run with --simulate first"
 
   # Ask for confirmation
   if $SIMULATE; then print.confirm "Simulate $COMMAND?"

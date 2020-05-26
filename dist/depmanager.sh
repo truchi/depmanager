@@ -41,8 +41,11 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
+# DEPMANAGER_LOG_DIR="/var/log/depmanager"
+DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_LOG_DIR"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
 if [ -t 1 ]; then
@@ -77,8 +80,11 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
+# DEPMANAGER_LOG_DIR="/var/log/depmanager"
+DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_LOG_DIR"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
 if [ -t 1 ]; then
@@ -457,9 +463,11 @@ print.confirm() {
   # Auto confirm if flag is given
   $YES && return
 
+  local msg="${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
+
   # Prompt confirmation message
   local reply
-  reply=$(print.input 1 "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})")
+  reply=$(print.input 1 "$msg")
 
   # Carriage return if user did not press enter
   [[ ! "$reply" =~ ^$ ]] && echo
@@ -474,7 +482,7 @@ print.confirm() {
 
   # Redraw with answer
   print.clear.line
-  print.fake.input "${BOLD}$*${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})" "${BOLD}${YELLOW}$answer${NO_COLOR}"
+  print.fake.input "$msg" "${BOLD}${YELLOW}$answer${NO_COLOR}"
 
   $confirmed
 }
@@ -601,7 +609,7 @@ print.csvs_info() {
 }
 
 print.pre_run_confirm() {
-  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip${NO_COLOR}: run with --simulate first"
+  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip:${NO_COLOR} run with --simulate first"
 
   # Ask for confirmation
   if $SIMULATE; then print.confirm "Simulate $COMMAND?"
@@ -728,8 +736,11 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
+# DEPMANAGER_LOG_DIR="/var/log/depmanager"
+DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_LOG_DIR"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
 if [ -t 1 ]; then
@@ -1028,26 +1039,6 @@ core.package.is_uptodate() {
 }
 
 #
-# Return the install command for package $2 of manager $1
-#
-core.package.install_command() {
-  local manager="$1"
-  local package="$2"
-
-  "managers.${manager}.package.install_command" "$package"
-}
-
-#
-# Installs package $2 of manager $1
-#
-core.package.install() {
-  local manager="$1"
-  local package="$2"
-
-  core.package.install_command "$manager" "$package"
-}
-
-#
 # Returns the local version of package $2 of manager $1
 # With cache
 #
@@ -1072,10 +1063,39 @@ __core.package.version() {
   local package="$2"
   local write_cache="$3"
   local version_type="$4"
-  local cmd="managers.${manager}.package.version.${version_type} $package"
+  local cmd="managers.${manager}.package.version.${version_type}"
 
   string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd"
+  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd" "$package"
+}
+
+#
+# Installs package $2 of manager $1
+#
+core.package.install() {
+  local manager="$1"
+  local package="$2"
+  local quiet="$3"
+
+  helpers.is_set "$quiet" || quiet=false
+  $quiet && quiet=true
+
+  local cmd
+  "managers.${manager}.package.install_command" "$package" "$quiet"
+
+  if $SIMULATE; then
+    print.info "(Simulation) ${BLUE}${cmd[*]}${NO_COLOR}"
+    return
+  fi
+
+  # local log_file="$DEPMANAGER_LOG_DIR/${manager}/${package}"
+  # mkdir -p "$log_file"
+  # touch "$log_file"
+
+  local msg="${BOLD}Run ${BLUE}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
+  if print.confirm "$msg"; then
+    ${cmd[*]}
+  fi
 }
 
 #
@@ -1108,8 +1128,8 @@ managers.apt.package.version.local() {
   # Get relevant line
   dpkg_list=$(sed '6q;d' <<< "$dpkg_list")
 
-  # If status is "n", package is not installed
-  if [[ $(string.slice "$dpkg_list" 1 1) == "n" ]]; then
+  # If status is not "i", package is not installed
+  if [[ $(string.slice "$dpkg_list" 1 1) != "i" ]]; then
     echo "$PACKAGE_NONE"
     return
   fi
@@ -1126,7 +1146,7 @@ managers.apt.package.version.remote() {
   policy=$(apt-cache policy "$1")
 
   # If apt returns nothing, package is not installed
-  if [[ "$policy" == "" ]]; then
+  if string.is_empty "$policy"; then
     echo "$PACKAGE_NONE"
     return
   fi
@@ -1140,12 +1160,11 @@ managers.apt.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=""
-  local quiet=""
-  $QUIET && quiet="--quiet"
-  $YES && yes="--yes"
+  local quiet="$2"
 
-  echo "sudo apt install $package $quiet $yes"
+  # echo "sudo apt install $package --yes$quiet"
+  cmd=("sudo" "apt" "install" "$package" "--yes")
+  $quiet && cmd+=("--quiet")
 }
 
 #
@@ -1210,10 +1229,11 @@ managers.npm.package.version.remote() {
 #
 # Returns the installation command for package $1
 #
-managers.apt.package.install_command() {
+managers.npm.package.install_command() {
   local package="$1"
-  local quiet=false
-  $QUIET && quiet="--quiet"
+  local quiet="$2"
+
+  $quiet && quiet="--quiet" || quiet=""
 
   echo "npm install $package --global --no-progress $quiet"
 }
@@ -1373,9 +1393,9 @@ command.status.update_table() {
     local exists=false
     local is_uptodate=false
 
-    [[ "$local_version"  != "$PACKAGE_NONE"   ]] && is_installed=true
-    [[ "$remote_version" != "$PACKAGE_NONE"   ]] && exists=true
-    [[ "$local_version"  == "$remote_version" ]] && is_uptodate=true
+    $local_version_done  && core.package.is_installed "$manager" "$package" && is_installed=true
+    $remote_version_done && core.package.exists       "$manager" "$package" && exists=true
+    $both_versions_done  && core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
 
     # Prepare printing vars
     local local_version_color=""
@@ -1442,51 +1462,57 @@ command.status() {
 
 command.install() {
   local manager=$1
-  local file
-  file=$(core.csv.path "$manager")
+
+  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
 
   local manager_version
   core.manager.version "$manager" > /dev/null
   manager_version=$(core.manager.version "$manager")
+
+  $QUIET || print.clear.line
   print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
 
   local i=1
-  while IFS=, read -ra line; do
-    local package=${line[0]}
+  IFS='
+'
+  for package in $(core.csv.get "$manager"); do
+    IFS=' '
     print.info "${BOLD}$package${NO_COLOR} ..."
 
-    local local_version
-    local remote_version
-    local exists
-    local is_installed
-    local is_uptodate
-
-    core.package.version.remote "$manager" "$package" > /dev/null
-    remote_version=$(core.package.version.remote "$manager" "$package")
-    exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
+    local exists=false
+    core.package.exists "$manager" "$package" && exists=true
 
     if ! $exists; then
       $QUIET || print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} do not exists"
+      print.error "${BOLD}$package${NO_COLOR} does not exists"
       continue
     fi
 
+    local local_version
+    local is_installed=false
+    local is_uptodate=false
+
     core.package.version.local "$manager" "$package" > /dev/null
     local_version=$(core.package.version.local "$manager" "$package")
-    is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
+    core.package.is_installed "$manager" "$package" && is_installed=true
+    core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
 
     $QUIET || print.clear.line
-    if $is_uptodate; then
-      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+
+    if $is_installed; then
+      if $is_uptodate; then
+        print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+      else
+        print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
+        core.package.install "$manager" "$package" "$QUIET"
+      fi
     else
-      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date, installing"
-      local install_command
-      install_command=$(core.package.install_command "$manager" "$package")
-      print.info "Running ${BLUE}$install_command${NO_COLOR}"
+      print.info "${BOLD}$package${NO_COLOR} is not installed"
+      core.package.install "$manager" "$package" "$QUIET"
     fi
 
     i=$((i + 1))
-  done < <(core.csv.get "$manager")
+  done
 }
 
 command.update() {
@@ -1622,28 +1648,38 @@ main() {
   core.dir.resolve
   core.manager.system
 
+  # Unset flags for interactive
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
     YES=false
+    SIMULATE=false
   fi
 
   print.system_info
   print.separator
 
+  # Run interactive (ask for CSV, command, and flags)
   if [[ "$COMMAND" == "interactive" ]]; then
     command.interactive
     print.separator
   fi
 
+  # Simulate implies !quiet
+  $SIMULATE && QUIET=false
+  # Quiet implies yes
+  $QUIET && YES=true
+
   print.csvs_info
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
+    # Status is never quiet
     local old_quiet=$QUIET
     QUIET=false
     main.run
     QUIET=$old_quiet
   else
+    # Ask confirm (auto yes if yes)
     if print.pre_run_confirm; then
       print.info Go!
       print.separator

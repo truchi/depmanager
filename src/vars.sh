@@ -20,8 +20,11 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
+# DEPMANAGER_LOG_DIR="/var/log/depmanager"
+DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
 DEPMANAGER_CACHE_DIR="/tmp/depmanager"
 FIFO="$DEPMANAGER_CACHE_DIR/fifo"
+mkdir -p "$DEPMANAGER_LOG_DIR"
 mkdir -p "$DEPMANAGER_CACHE_DIR"
 
 if [ -t 1 ]; then

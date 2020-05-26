@@ -30,8 +30,8 @@ managers.apt.package.version.local() {
   # Get relevant line
   dpkg_list=$(sed '6q;d' <<< "$dpkg_list")
 
-  # If status is "n", package is not installed
-  if [[ $(string.slice "$dpkg_list" 1 1) == "n" ]]; then
+  # If status is not "i", package is not installed
+  if [[ $(string.slice "$dpkg_list" 1 1) != "i" ]]; then
     echo "$PACKAGE_NONE"
     return
   fi
@@ -48,7 +48,7 @@ managers.apt.package.version.remote() {
   policy=$(apt-cache policy "$1")
 
   # If apt returns nothing, package is not installed
-  if [[ "$policy" == "" ]]; then
+  if string.is_empty "$policy"; then
     echo "$PACKAGE_NONE"
     return
   fi
@@ -62,11 +62,9 @@ managers.apt.package.version.remote() {
 #
 managers.apt.package.install_command() {
   local package="$1"
-  local yes=""
-  local quiet=""
-  $QUIET && quiet="--quiet"
-  $YES && yes="--yes"
+  local quiet="$2"
 
-  echo "sudo apt install $package $quiet $yes"
+  cmd=("sudo" "apt" "install" "$package" "--yes")
+  $quiet && cmd+=("--quiet")
 }
 

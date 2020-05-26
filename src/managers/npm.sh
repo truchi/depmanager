@@ -62,11 +62,11 @@ managers.npm.package.version.remote() {
 #
 # Returns the installation command for package $1
 #
-managers.apt.package.install_command() {
+managers.npm.package.install_command() {
   local package="$1"
-  local quiet=false
-  $QUIET && quiet="--quiet"
+  local quiet="$2"
 
-  echo "npm install $package --global --no-progress $quiet"
+  cmd=("npm" "install" "$package" "--global" "--no-progress")
+  $quiet && cmd+=("--quiet")
 }
 

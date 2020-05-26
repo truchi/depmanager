@@ -167,28 +167,38 @@ main() {
   core.dir.resolve
   core.manager.system
 
+  # Unset flags for interactive
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
     YES=false
+    SIMULATE=false
   fi
 
   print.system_info
   print.separator
 
+  # Run interactive (ask for CSV, command, and flags)
   if [[ "$COMMAND" == "interactive" ]]; then
     command.interactive
     print.separator
   fi
 
+  # Simulate implies !quiet
+  $SIMULATE && QUIET=false
+  # Quiet implies yes
+  $QUIET && YES=true
+
   print.csvs_info
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
+    # Status is never quiet
     local old_quiet=$QUIET
     QUIET=false
     main.run
     QUIET=$old_quiet
   else
+    # Ask confirm (auto yes if yes)
     if print.pre_run_confirm; then
       print.info Go!
       print.separator

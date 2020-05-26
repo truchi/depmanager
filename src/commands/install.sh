@@ -2,49 +2,55 @@
 
 command.install() {
   local manager=$1
-  local file
-  file=$(core.csv.path "$manager")
+
+  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
 
   local manager_version
   core.manager.version "$manager" > /dev/null
   manager_version=$(core.manager.version "$manager")
+
+  $QUIET || print.clear.line
   print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
 
   local i=1
-  while IFS=, read -ra line; do
-    local package=${line[0]}
+  IFS='
+'
+  for package in $(core.csv.get "$manager"); do
+    IFS=' '
     print.info "${BOLD}$package${NO_COLOR} ..."
 
-    local local_version
-    local remote_version
-    local exists
-    local is_installed
-    local is_uptodate
-
-    core.package.version.remote "$manager" "$package" > /dev/null
-    remote_version=$(core.package.version.remote "$manager" "$package")
-    exists=$(core.package.exists "$manager" "$package" && echo true || echo false)
+    local exists=false
+    core.package.exists "$manager" "$package" && exists=true
 
     if ! $exists; then
       $QUIET || print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} do not exists"
+      print.error "${BOLD}$package${NO_COLOR} does not exists"
       continue
     fi
 
+    local local_version
+    local is_installed=false
+    local is_uptodate=false
+
     core.package.version.local "$manager" "$package" > /dev/null
     local_version=$(core.package.version.local "$manager" "$package")
-    is_uptodate=$(core.package.is_uptodate "$manager" "$package" && echo true || echo false)
+    core.package.is_installed "$manager" "$package" && is_installed=true
+    core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
 
     $QUIET || print.clear.line
-    if $is_uptodate; then
-      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+
+    if $is_installed; then
+      if $is_uptodate; then
+        print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+      else
+        print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
+        core.package.install "$manager" "$package" "$QUIET"
+      fi
     else
-      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date, installing"
-      local install_command
-      install_command=$(core.package.install_command "$manager" "$package")
-      print.info "Running ${BLUE}$install_command${NO_COLOR}"
+      print.info "${BOLD}$package${NO_COLOR} is not installed"
+      core.package.install "$manager" "$package" "$QUIET"
     fi
 
     i=$((i + 1))
-  done < <(core.csv.get "$manager")
+  done
 }

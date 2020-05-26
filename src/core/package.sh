@@ -62,26 +62,6 @@ core.package.is_uptodate() {
 }
 
 #
-# Return the install command for package $2 of manager $1
-#
-core.package.install_command() {
-  local manager="$1"
-  local package="$2"
-
-  "managers.${manager}.package.install_command" "$package"
-}
-
-#
-# Installs package $2 of manager $1
-#
-core.package.install() {
-  local manager="$1"
-  local package="$2"
-
-  core.package.install_command "$manager" "$package"
-}
-
-#
 # Returns the local version of package $2 of manager $1
 # With cache
 #
@@ -106,9 +86,38 @@ __core.package.version() {
   local package="$2"
   local write_cache="$3"
   local version_type="$4"
-  local cmd="managers.${manager}.package.version.${version_type} $package"
+  local cmd="managers.${manager}.package.version.${version_type}"
 
   string.is_empty "$write_cache" && write_cache=true
-  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd"
+  cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd" "$package"
+}
+
+#
+# Installs package $2 of manager $1
+#
+core.package.install() {
+  local manager="$1"
+  local package="$2"
+  local quiet="$3"
+
+  helpers.is_set "$quiet" || quiet=false
+  $quiet && quiet=true
+
+  local cmd
+  "managers.${manager}.package.install_command" "$package" "$quiet"
+
+  if $SIMULATE; then
+    print.info "(Simulation) ${BLUE}${cmd[*]}${NO_COLOR}"
+    return
+  fi
+
+  # local log_file="$DEPMANAGER_LOG_DIR/${manager}/${package}"
+  # mkdir -p "$log_file"
+  # touch "$log_file"
+
+  local msg="${BOLD}Run ${BLUE}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
+  if print.confirm "$msg"; then
+    ${cmd[*]}
+  fi
 }
 
