@@ -68,7 +68,7 @@ core.manager.async.versions() {
   local args=("$@")
   args=("${args[@]:2}")
 
-  local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
+  local fifo="$DEPMANAGER_TMP_DIR/fifo__${manager}"
 
   # Init async cache
   cache.async.init "$fifo"

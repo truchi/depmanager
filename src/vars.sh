@@ -20,9 +20,8 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
-DEPMANAGER_CACHE_DIR="/tmp/depmanager"
-FIFO="$DEPMANAGER_CACHE_DIR/fifo"
-mkdir -p "$DEPMANAGER_CACHE_DIR"
+DEPMANAGER_TMP_DIR="/tmp/depmanager"
+mkdir -p "$DEPMANAGER_TMP_DIR"
 
 if [ -t 1 ]; then
   NO_COLOR=$(tput sgr0)
