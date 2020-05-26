@@ -98,16 +98,13 @@ __core.package.version() {
 core.package.install() {
   local manager="$1"
   local package="$2"
-  local quiet="$3"
-
-  helpers.is_set "$quiet" || quiet=false
-  $quiet && quiet=true
 
   local cmd
-  "managers.${manager}.package.install_command" "$package" "$quiet"
+  "managers.${manager}.package.install_command" "$package" "$QUIET"
+  local msg="${BOLD}Run \`${YELLOW}${cmd[*]}${NO_COLOR}\`${BOLD}?${NO_COLOR}"
 
   if $SIMULATE; then
-    print.info "(Simulation) ${BLUE}${cmd[*]}${NO_COLOR}"
+    print.confirm "$msg" <<< "n"
     return
   fi
 
@@ -115,48 +112,8 @@ core.package.install() {
   # mkdir -p "$log_file"
   # touch "$log_file"
 
-  local msg="${BOLD}Run ${BLUE}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
   if print.confirm "$msg"; then
     ${cmd[*]}
-  fi
-}
-
-core.package.install_or_update() {
-  local manager="$1"
-  local package="$2"
-
-  print.info "${BOLD}$package${NO_COLOR} ..."
-
-  local exists=false
-  core.package.exists "$manager" "$package" && exists=true
-
-  if ! $exists; then
-    $QUIET || print.clear.line
-    print.error "${BOLD}$package${NO_COLOR} does not exists"
-    return
-  fi
-
-  local local_version
-  local is_installed=false
-  local is_uptodate=false
-
-  core.package.version.local "$manager" "$package" > /dev/null
-  local_version=$(core.package.version.local "$manager" "$package")
-  core.package.is_installed "$manager" "$package" && is_installed=true
-  core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
-
-  $QUIET || print.clear.line
-
-  if $is_installed; then
-    if $is_uptodate; then
-      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
-    else
-      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
-      core.package.install "$manager" "$package" "$QUIET"
-    fi
-  else
-    print.info "${BOLD}$package${NO_COLOR} is not installed"
-    core.package.install "$manager" "$package" "$QUIET"
   fi
 }
 

@@ -5,3 +5,4 @@ command.install() {
 
   core.manager.install_or_update "$manager"
 }
+

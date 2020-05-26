@@ -1,5 +1,8 @@
 # shellcheck shell=bash
 
 command.update() {
-  echo UPDATE
+  local manager="$1"
+
+  core.manager.install_or_update "$manager"
 }
+

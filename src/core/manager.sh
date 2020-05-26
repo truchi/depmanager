@@ -116,8 +116,51 @@ core.manager.install_or_update() {
   for line in $(core.csv.get "$manager"); do
     local array
     IFS=',' read -ra array <<< "$line"
+    IFS=' '
 
     local package="${array[0]}"
-    IFS=' ' core.package.install_or_update "$manager" "$package"
+
+    print.info "${BOLD}$package${NO_COLOR} ..."
+
+    local exists=false
+    core.package.exists "$manager" "$package" && exists=true
+
+    if ! $exists; then
+      $QUIET || print.clear.line
+      print.error "${BOLD}$package${NO_COLOR} does not exists"
+      continue
+    fi
+
+    local local_version
+    local remote_version
+    local is_installed=false
+    local is_uptodate=false
+
+    core.package.version.local "$manager" "$package" > /dev/null
+    local_version=$(core.package.version.local "$manager" "$package")
+    remote_version=$(core.package.version.remote "$manager" "$package")
+    core.package.is_installed "$manager" "$package" && is_installed=true
+    core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
+
+    $QUIET || print.clear.line
+
+    if $is_installed; then
+      if $is_uptodate; then
+        print.success "${BOLD}$package${NO_COLOR} is up-to-date (${BOLD}$local_version${NO_COLOR})"
+      else
+        print.warning "${BOLD}$package${NO_COLOR} is not up-to-date (local: ${BOLD}$local_version${NO_COLOR}, remote: ${BOLD}$remote_version${NO_COLOR})"
+        core.package.install "$manager" "$package" "$QUIET"
+      fi
+    else
+      local msg="${BOLD}$package${NO_COLOR} is not installed (remote: ${BOLD}$remote_version${NO_COLOR})"
+      if [[ $COMMAND == "install" ]]; then
+        print.warning "$msg"
+        core.package.install "$manager" "$package"
+      else
+        local depmanager_cmd
+        depmanager_cmd=$(basename "$0")
+        print.warning "$msg, run \`${BOLD}${YELLOW}$depmanager_cmd install${NO_COLOR}\` to install"
+      fi
+    fi
   done
 }

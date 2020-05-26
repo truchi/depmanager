@@ -30,6 +30,7 @@ managers.npm.package.is_installed() {
 #
 managers.npm.package.version.local() {
   local npm_list
+  # FIXME grep instead of sed 2
   npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
 
   # If npm returns "(empty)", package is not installed
