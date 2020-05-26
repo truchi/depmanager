@@ -121,3 +121,42 @@ core.package.install() {
   fi
 }
 
+core.package.install_or_update() {
+  local manager="$1"
+  local package="$2"
+
+  print.info "${BOLD}$package${NO_COLOR} ..."
+
+  local exists=false
+  core.package.exists "$manager" "$package" && exists=true
+
+  if ! $exists; then
+    $QUIET || print.clear.line
+    print.error "${BOLD}$package${NO_COLOR} does not exists"
+    return
+  fi
+
+  local local_version
+  local is_installed=false
+  local is_uptodate=false
+
+  core.package.version.local "$manager" "$package" > /dev/null
+  local_version=$(core.package.version.local "$manager" "$package")
+  core.package.is_installed "$manager" "$package" && is_installed=true
+  core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
+
+  $QUIET || print.clear.line
+
+  if $is_installed; then
+    if $is_uptodate; then
+      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+    else
+      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
+      core.package.install "$manager" "$package" "$QUIET"
+    fi
+  else
+    print.info "${BOLD}$package${NO_COLOR} is not installed"
+    core.package.install "$manager" "$package" "$QUIET"
+  fi
+}
+

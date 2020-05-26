@@ -796,6 +796,29 @@ core.manager.async.versions() {
   cache.async.listen "$fifo" $((i * 2 + 1)) "$cmd" "${args[@]}"
 }
 
+core.manager.install_or_update() {
+  local manager="$1"
+
+  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
+
+  local manager_version
+  core.manager.version "$manager" > /dev/null
+  manager_version=$(core.manager.version "$manager")
+
+  $QUIET || print.clear.line
+  print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
+
+  IFS='
+'
+  for line in $(core.csv.get "$manager"); do
+    local array
+    IFS=',' read -ra array <<< "$line"
+
+    local package="${array[0]}"
+    IFS=' ' core.package.install_or_update "$manager" "$package"
+  done
+}
+
 core.package.exists() {
   local manager="$1"
   local package="$2"
@@ -877,6 +900,45 @@ core.package.install() {
   local msg="${BOLD}Run ${BLUE}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
   if print.confirm "$msg"; then
     ${cmd[*]}
+  fi
+}
+
+core.package.install_or_update() {
+  local manager="$1"
+  local package="$2"
+
+  print.info "${BOLD}$package${NO_COLOR} ..."
+
+  local exists=false
+  core.package.exists "$manager" "$package" && exists=true
+
+  if ! $exists; then
+    $QUIET || print.clear.line
+    print.error "${BOLD}$package${NO_COLOR} does not exists"
+    return
+  fi
+
+  local local_version
+  local is_installed=false
+  local is_uptodate=false
+
+  core.package.version.local "$manager" "$package" > /dev/null
+  local_version=$(core.package.version.local "$manager" "$package")
+  core.package.is_installed "$manager" "$package" && is_installed=true
+  core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
+
+  $QUIET || print.clear.line
+
+  if $is_installed; then
+    if $is_uptodate; then
+      print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
+    else
+      print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
+      core.package.install "$manager" "$package" "$QUIET"
+    fi
+  else
+    print.info "${BOLD}$package${NO_COLOR} is not installed"
+    core.package.install "$manager" "$package" "$QUIET"
   fi
 }
 
@@ -971,9 +1033,8 @@ managers.npm.package.install_command() {
   local package="$1"
   local quiet="$2"
 
-  $quiet && quiet="--quiet" || quiet=""
-
-  echo "npm install $package --global --no-progress $quiet"
+  cmd=("npm" "install" "$package" "--global" "--no-progress")
+  $quiet && cmd+=("--quiet")
 }
 
 command.interactive() {
@@ -1170,58 +1231,9 @@ command.status() {
 }
 
 command.install() {
-  local manager=$1
+  local manager="$1"
 
-  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
-
-  local manager_version
-  core.manager.version "$manager" > /dev/null
-  manager_version=$(core.manager.version "$manager")
-
-  $QUIET || print.clear.line
-  print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
-
-  local i=1
-  IFS='
-'
-  for package in $(core.csv.get "$manager"); do
-    IFS=' '
-    print.info "${BOLD}$package${NO_COLOR} ..."
-
-    local exists=false
-    core.package.exists "$manager" "$package" && exists=true
-
-    if ! $exists; then
-      $QUIET || print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} does not exists"
-      continue
-    fi
-
-    local local_version
-    local is_installed=false
-    local is_uptodate=false
-
-    core.package.version.local "$manager" "$package" > /dev/null
-    local_version=$(core.package.version.local "$manager" "$package")
-    core.package.is_installed "$manager" "$package" && is_installed=true
-    core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
-
-    $QUIET || print.clear.line
-
-    if $is_installed; then
-      if $is_uptodate; then
-        print.success "${BOLD}$package${NO_COLOR} ($local_version) is up-to-date"
-      else
-        print.info "${BOLD}$package${NO_COLOR} ($local_version) is not up-to-date"
-        core.package.install "$manager" "$package" "$QUIET"
-      fi
-    else
-      print.info "${BOLD}$package${NO_COLOR} is not installed"
-      core.package.install "$manager" "$package" "$QUIET"
-    fi
-
-    i=$((i + 1))
-  done
+  core.manager.install_or_update "$manager"
 }
 
 command.update() {
