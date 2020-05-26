@@ -157,9 +157,7 @@ core.manager.install_or_update() {
         print.warning "$msg"
         core.package.install "$manager" "$package"
       else
-        local depmanager_cmd
-        depmanager_cmd=$(basename "$0")
-        print.warning "$msg, run \`${BOLD}${YELLOW}$depmanager_cmd install${NO_COLOR}\` to install"
+        print.warning "$msg, run \`${BOLD}${YELLOW}$DEPMANAGER_CMD install${NO_COLOR}\` to install"
       fi
     fi
   done

@@ -61,7 +61,12 @@ main.parse_args() {
   # Get command
   case "$1" in
     I|interactive)
-      COMMAND="interactive";;
+      COMMAND="interactive"
+      if ! $IN_TERMINAL; then
+        print.error "Cannot run \`$DEPMANAGER_CMD interactive\` outside of a terminal"
+        exit 1
+      fi
+      ;;
     s|status)
       COMMAND="status";;
     i|install)

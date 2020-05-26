@@ -98,7 +98,7 @@ command.status() {
   length=$((length + 2))
 
   # If in terminal
-  if [ -t 1 ]; then
+  if $IN_TERMINAL; then
     last_update=0
     command.status.update_table "$manager" 0
     core.manager.async.versions "$manager" "command.status.update_table" "$manager" "$length"

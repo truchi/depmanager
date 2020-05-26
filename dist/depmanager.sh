@@ -41,14 +41,14 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
-# DEPMANAGER_LOG_DIR="/var/log/depmanager"
-DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
-DEPMANAGER_CACHE_DIR="/tmp/depmanager"
-FIFO="$DEPMANAGER_CACHE_DIR/fifo"
-mkdir -p "$DEPMANAGER_LOG_DIR"
-mkdir -p "$DEPMANAGER_CACHE_DIR"
+DEPMANAGER_TMP_DIR="/tmp/depmanager"
+mkdir -p "$DEPMANAGER_TMP_DIR"
 
+DEPMANAGER_CMD=$(basename "$0")
+
+IN_TERMINAL=false
 if [ -t 1 ]; then
+  IN_TERMINAL=true
   NO_COLOR=$(tput sgr0)
   BOLD=$(tput bold)
   RED=$(tput setaf 1)
@@ -80,14 +80,14 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
-# DEPMANAGER_LOG_DIR="/var/log/depmanager"
-DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
-DEPMANAGER_CACHE_DIR="/tmp/depmanager"
-FIFO="$DEPMANAGER_CACHE_DIR/fifo"
-mkdir -p "$DEPMANAGER_LOG_DIR"
-mkdir -p "$DEPMANAGER_CACHE_DIR"
+DEPMANAGER_TMP_DIR="/tmp/depmanager"
+mkdir -p "$DEPMANAGER_TMP_DIR"
 
+DEPMANAGER_CMD=$(basename "$0")
+
+IN_TERMINAL=false
 if [ -t 1 ]; then
+  IN_TERMINAL=true
   NO_COLOR=$(tput sgr0)
   BOLD=$(tput bold)
   RED=$(tput setaf 1)
@@ -523,13 +523,10 @@ ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
 print.help() {
-  local cmd
-  cmd=$(basename "$0")
-
   echo "${BOLD}${BLUE}Usage:${NO_COLOR}
-  ${BOLD}${GREEN}$cmd${NO_COLOR} [-h|--version]
-  ${BOLD}${GREEN}$cmd${NO_COLOR} [-v|--help]
-  ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
+  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-h|--version]
+  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-v|--help]
+  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} <cmd> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your packages.
@@ -736,14 +733,14 @@ for manager in "${MANAGERS[@]}"; do
 done
 
 PACKAGE_NONE="<NONE>"
-# DEPMANAGER_LOG_DIR="/var/log/depmanager"
-DEPMANAGER_LOG_DIR="$HOME/depmanager/log"
-DEPMANAGER_CACHE_DIR="/tmp/depmanager"
-FIFO="$DEPMANAGER_CACHE_DIR/fifo"
-mkdir -p "$DEPMANAGER_LOG_DIR"
-mkdir -p "$DEPMANAGER_CACHE_DIR"
+DEPMANAGER_TMP_DIR="/tmp/depmanager"
+mkdir -p "$DEPMANAGER_TMP_DIR"
 
+DEPMANAGER_CMD=$(basename "$0")
+
+IN_TERMINAL=false
 if [ -t 1 ]; then
+  IN_TERMINAL=true
   NO_COLOR=$(tput sgr0)
   BOLD=$(tput bold)
   RED=$(tput setaf 1)
@@ -948,7 +945,7 @@ core.manager.async.versions() {
   local args=("$@")
   args=("${args[@]:2}")
 
-  local fifo="$DEPMANAGER_CACHE_DIR/fifo__${manager}"
+  local fifo="$DEPMANAGER_TMP_DIR/fifo__${manager}"
 
   # Init async cache
   cache.async.init "$fifo"
@@ -1037,9 +1034,7 @@ core.manager.install_or_update() {
         print.warning "$msg"
         core.package.install "$manager" "$package"
       else
-        local depmanager_cmd
-        depmanager_cmd=$(basename "$0")
-        print.warning "$msg, run \`${BOLD}${YELLOW}$depmanager_cmd install${NO_COLOR}\` to install"
+        print.warning "$msg, run \`${BOLD}${YELLOW}$DEPMANAGER_CMD install${NO_COLOR}\` to install"
       fi
     fi
   done
@@ -1150,10 +1145,6 @@ core.package.install() {
     print.confirm "$msg" <<< "n"
     return
   fi
-
-  # local log_file="$DEPMANAGER_LOG_DIR/${manager}/${package}"
-  # mkdir -p "$log_file"
-  # touch "$log_file"
 
   if print.confirm "$msg"; then
     ${cmd[*]}
@@ -1509,7 +1500,7 @@ command.status() {
   length=$((length + 2))
 
   # If in terminal
-  if [ -t 1 ]; then
+  if $IN_TERMINAL; then
     last_update=0
     command.status.update_table "$manager" 0
     core.manager.async.versions "$manager" "command.status.update_table" "$manager" "$length"
@@ -1556,7 +1547,12 @@ main.parse_args() {
   # Get command
   case "$1" in
     I|interactive)
-      COMMAND="interactive";;
+      COMMAND="interactive"
+      if ! $IN_TERMINAL; then
+        print.error "Cannot run \`$DEPMANAGER_CMD interactive\` outside of a terminal"
+        exit 1
+      fi
+      ;;
     s|status)
       COMMAND="status";;
     i|install)
