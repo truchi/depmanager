@@ -432,6 +432,7 @@ print.separator() {
 }
 
 print.date() {
+  $QUIET && return
   echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
 }
 
@@ -517,6 +518,7 @@ print.fake.input() {
 }
 
 print.clear.line() {
+  $IN_TERMINAL || return
   tput cuu1
   tput el
 }
@@ -1491,10 +1493,13 @@ command.status.update_table() {
   headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
   headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
-  # Clear screen (status should never be quiet)
-  for i in $(seq 1 "$remove"); do
-    tput cuu1
-  done
+  # Clear screen
+  # (status should never be quiet, screen should be drawn only once outside a terminal)
+  if ! $QUIET && $IN_TERMINAL; then
+    for i in $(seq 1 "$remove"); do
+      tput cuu1
+    done
+  fi
 
   # Print!
   table.print "$title" headers[@] levels[@] messages[@]
@@ -1666,7 +1671,7 @@ main() {
   core.dir.resolve
   core.manager.system
 
-  # Unset flags for interactive
+  # Unset flags before interactive
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
     YES=false
@@ -1693,13 +1698,13 @@ main() {
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
-    # Status is never quiet
+    # Status cannot be quiet
     local old_quiet=$QUIET
     QUIET=false
     main.run
     QUIET=$old_quiet
   else
-    # Ask confirm (auto yes if yes)
+    # Ask confirm
     if print.pre_run_confirm; then
       print.info Go!
       print.separator

@@ -6,6 +6,7 @@ print.separator() {
 }
 
 print.date() {
+  $QUIET && return
   echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
 }
 
@@ -91,6 +92,7 @@ print.fake.input() {
 }
 
 print.clear.line() {
+  $IN_TERMINAL || return
   tput cuu1
   tput el
 }

@@ -172,7 +172,7 @@ main() {
   core.dir.resolve
   core.manager.system
 
-  # Unset flags for interactive
+  # Unset flags before interactive
   if [[ "$COMMAND" == "interactive" ]]; then
     QUIET=false
     YES=false
@@ -199,13 +199,13 @@ main() {
   print.separator
 
   if [[ $COMMAND == "status" ]]; then
-    # Status is never quiet
+    # Status cannot be quiet
     local old_quiet=$QUIET
     QUIET=false
     main.run
     QUIET=$old_quiet
   else
-    # Ask confirm (auto yes if yes)
+    # Ask confirm
     if print.pre_run_confirm; then
       print.info Go!
       print.separator

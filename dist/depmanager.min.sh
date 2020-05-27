@@ -327,6 +327,7 @@ print.separator() {
 }
 
 print.date() {
+  $QUIET && return
   echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
 }
 
@@ -406,6 +407,7 @@ print.fake.input() {
 }
 
 print.clear.line() {
+  $IN_TERMINAL || return
   tput cuu1
   tput el
 }
@@ -1209,9 +1211,11 @@ command.status.update_table() {
   headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
   headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
-  for i in $(seq 1 "$remove"); do
-    tput cuu1
-  done
+  if ! $QUIET && $IN_TERMINAL; then
+    for i in $(seq 1 "$remove"); do
+      tput cuu1
+    done
+  fi
 
   table.print "$title" headers[@] levels[@] messages[@]
   last_update=$(date +%s)

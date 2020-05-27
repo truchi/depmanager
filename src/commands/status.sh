@@ -81,10 +81,13 @@ command.status.update_table() {
   headers+=("${BLUE}${BOLD}Local${NO_COLOR}")
   headers+=("${BLUE}${BOLD}Remote${NO_COLOR}")
 
-  # Clear screen (status should never be quiet)
-  for i in $(seq 1 "$remove"); do
-    tput cuu1
-  done
+  # Clear screen
+  # (status should never be quiet, screen should be drawn only once outside a terminal)
+  if ! $QUIET && $IN_TERMINAL; then
+    for i in $(seq 1 "$remove"); do
+      tput cuu1
+    done
+  fi
 
   # Print!
   table.print "$title" headers[@] levels[@] messages[@]
