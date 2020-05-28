@@ -129,9 +129,9 @@ main.parse_args() {
 # Runs $COMMAND for each managers
 #
 main.run() {
-  # User's system managers only and other managers
-  declare -a managers
-  managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+  local managers=()
+  helpers.is_set "$SYSTEM_MANAGER" && managers+=("$SYSTEM_MANAGER")
+  managers+=("${NON_SYSTEM_MANAGERS[@]}")
 
   local length
   length=$(array.length managers[@])
@@ -144,6 +144,7 @@ main.run() {
     # Pass if is ignored or CSV not found
     core.manager.is_ignored "$manager" && continue
     core.csv.exists         "$manager" || continue
+    core.csv.is_empty       "$manager" && continue
     (( j != 0 )) && print.separator
     j=$((j + 1))
 
@@ -153,13 +154,7 @@ main.run() {
       continue
     fi
 
-    # Run command for manager if CSV contains data,
-    # or print warning
-    if core.csv.is_empty "$manager"; then
-      print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
-    else
-      command.${COMMAND} "$manager"
-    fi
+    command.${COMMAND} "$manager"
   done
 }
 

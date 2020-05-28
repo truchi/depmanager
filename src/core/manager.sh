@@ -5,19 +5,20 @@
 #
 # Sets `SYSTEM_MANAGER` to the first found system manager
 #
+core_manager_system_ran=false
 core.manager.system() {
   # Already detected?
-  helpers.is_set "$SYSTEM_MANAGER" && return
+  $core_manager_system_ran && return
 
   # Try all system managers
   for manager in "${SYSTEM_MANAGERS[@]}"; do
     if core.manager.exists "$manager"; then
       SYSTEM_MANAGER="$manager"
-      # Init cache for version
-      core.manager.version "$SYSTEM_MANAGER" > /dev/null
       return
     fi
   done
+
+  core_manager_system_ran=true
 }
 
 #

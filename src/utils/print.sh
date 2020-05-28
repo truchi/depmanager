@@ -209,10 +209,11 @@ print.system_info() {
 
   if helpers.is_set "$SYSTEM_MANAGER"; then
     local version
-    local levels=("info" "info")
-    local messages=("${dir[@]}")
+    core.manager.version "$SYSTEM_MANAGER" > /dev/null
     version=$(core.manager.version "$SYSTEM_MANAGER")
+    local messages=("${dir[@]}")
     messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
+    local levels=("info" "info")
 
     table.print "" 3 levels[@] messages[@]
   else
@@ -222,30 +223,43 @@ print.system_info() {
 }
 
 print.csvs_info() {
-  local i=0
+  local managers=()
+  helpers.is_set "$SYSTEM_MANAGER" && managers+=("$SYSTEM_MANAGER")
+  managers+=("${NON_SYSTEM_MANAGERS[@]}")
+
   local levels=()
   local messages=()
-  for manager in "${MANAGERS[@]}"; do
-    # Ignore system manager which are not detected on user's system
-    if core.manager.is_system "$manager"; then
-      core.manager.exists "$manager" || continue
-    fi
-
+  for manager in "${managers[@]}"; do
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.manager.is_ignored "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.csv.exists         "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
-    else                                          messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+
+    if core.manager.is_ignored "$manager"; then
+      messages+=("${BLUE}ignored${NO_COLOR}")
+      messages+=("")
+      levels+=("info")
+      continue
     fi
 
-    if   core.manager.is_ignored "$manager"; then  levels+=("info")
-    elif core.csv.exists         "$manager"; then  levels+=("success")
-    else                                           levels+=("warning")
+    if ! core.csv.exists "$manager"; then
+      messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+      messages+=("(not found)")
+      levels+=("warning")
+      continue
     fi
 
-    i=$((i + 1))
+    if core.csv.is_empty "$manager"; then
+      messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+      messages+=("(empty)")
+      levels+=("warning")
+      continue
+    fi
+
+    messages+=("${GREEN}$(core.csv.path "$manager")${NO_COLOR}")
+    messages+=("")
+    levels+=("success")
   done
 
-  table.print "" 2 levels[@] messages[@]
+  # FIXME first column is larger than expected...
+  table.print "" 3 levels[@] messages[@]
 }
 
 print.pre_run_confirm() {

@@ -517,10 +517,11 @@ print.system_info() {
 
   if helpers.is_set "$SYSTEM_MANAGER"; then
     local version
-    local levels=("info" "info")
-    local messages=("${dir[@]}")
+    core.manager.version "$SYSTEM_MANAGER" > /dev/null
     version=$(core.manager.version "$SYSTEM_MANAGER")
+    local messages=("${dir[@]}")
     messages+=("${BOLD}System's manager${NO_COLOR}" "${BLUE}$SYSTEM_MANAGER${NO_COLOR}" "($version)")
+    local levels=("info" "info")
 
     table.print "" 3 levels[@] messages[@]
   else
@@ -530,29 +531,42 @@ print.system_info() {
 }
 
 print.csvs_info() {
-  local i=0
+  local managers=()
+  helpers.is_set "$SYSTEM_MANAGER" && managers+=("$SYSTEM_MANAGER")
+  managers+=("${NON_SYSTEM_MANAGERS[@]}")
+
   local levels=()
   local messages=()
-  for manager in "${MANAGERS[@]}"; do
-    if core.manager.is_system "$manager"; then
-      core.manager.exists "$manager" || continue
-    fi
-
+  for manager in "${managers[@]}"; do
     messages+=("${BOLD}$manager${NO_COLOR}")
-    if   core.manager.is_ignored "$manager"; then messages+=("${BLUE}ignored${NO_COLOR}")
-    elif core.csv.exists         "$manager"; then messages+=("${GREEN}$(core.csv.path  "$manager")${NO_COLOR}")
-    else                                          messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+
+    if core.manager.is_ignored "$manager"; then
+      messages+=("${BLUE}ignored${NO_COLOR}")
+      messages+=("")
+      levels+=("info")
+      continue
     fi
 
-    if   core.manager.is_ignored "$manager"; then  levels+=("info")
-    elif core.csv.exists         "$manager"; then  levels+=("success")
-    else                                           levels+=("warning")
+    if ! core.csv.exists "$manager"; then
+      messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+      messages+=("(not found)")
+      levels+=("warning")
+      continue
     fi
 
-    i=$((i + 1))
+    if core.csv.is_empty "$manager"; then
+      messages+=("${YELLOW}$(core.csv.path "$manager")${NO_COLOR}")
+      messages+=("(empty)")
+      levels+=("warning")
+      continue
+    fi
+
+    messages+=("${GREEN}$(core.csv.path "$manager")${NO_COLOR}")
+    messages+=("")
+    levels+=("success")
   done
 
-  table.print "" 2 levels[@] messages[@]
+  table.print "" 3 levels[@] messages[@]
 }
 
 print.pre_run_confirm() {
@@ -792,16 +806,18 @@ core.csv.is_empty() {
   string.is_empty "$(core.csv.get "$manager")"
 }
 
+core_manager_system_ran=false
 core.manager.system() {
-  helpers.is_set "$SYSTEM_MANAGER" && return
+  $core_manager_system_ran && return
 
   for manager in "${SYSTEM_MANAGERS[@]}"; do
     if core.manager.exists "$manager"; then
       SYSTEM_MANAGER="$manager"
-      core.manager.version "$SYSTEM_MANAGER" > /dev/null
       return
     fi
   done
+
+  core_manager_system_ran=true
 }
 
 core.manager.is_system() {
@@ -1359,8 +1375,9 @@ main.parse_args() {
 }
 
 main.run() {
-  declare -a managers
-  managers=("$SYSTEM_MANAGER" "${NON_SYSTEM_MANAGERS[@]}")
+  local managers=()
+  helpers.is_set "$SYSTEM_MANAGER" && managers+=("$SYSTEM_MANAGER")
+  managers+=("${NON_SYSTEM_MANAGERS[@]}")
 
   local length
   length=$(array.length managers[@])
@@ -1371,6 +1388,7 @@ main.run() {
 
     core.manager.is_ignored "$manager" && continue
     core.csv.exists         "$manager" || continue
+    core.csv.is_empty       "$manager" && continue
     (( j != 0 )) && print.separator
     j=$((j + 1))
 
@@ -1379,11 +1397,7 @@ main.run() {
       continue
     fi
 
-    if core.csv.is_empty "$manager"; then
-      print.warning "${BOLD}${BLUE}$manager${NO_COLOR} CSV is empty"
-    else
-      command.${COMMAND} "$manager"
-    fi
+    command.${COMMAND} "$manager"
   done
 }
 
