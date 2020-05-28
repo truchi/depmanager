@@ -1067,7 +1067,11 @@ command.interactive() {
 
   [[ $COMMAND == "status" ]] && return
 
-  local options=("Quiet" "Yes" "Simulate")
+  local options=()
+  $_QUIET    && options+=("Quiet")    || options+=("quiet")
+  $_YES      && options+=("Yes")      || options+=("yes")
+  $_SIMULATE && options+=("Simulate") || options+=("simulate")
+
   print.choice 3 "${BOLD}Flags?${NO_COLOR}" options[@]
   string.contains "$REPLY" "quiet"    && QUIET=true
   string.contains "$REPLY" "yes"      && YES=true
@@ -1374,6 +1378,9 @@ main.force_flags() {
 }
 
 main.reset_flags() {
+  _QUIET=$QUIET
+  _YES=$YES
+  _SIMULATE=$SIMULATE
   QUIET=false
   YES=false
   SIMULATE=false
@@ -1384,8 +1391,9 @@ main() {
   core.dir.resolve
   core.manager.system
 
-  main.force_flags
-  [[ "$COMMAND" == "interactive" ]] && main.reset_flags
+  if [[ "$COMMAND" == "interactive" ]]; then main.reset_flags
+  else                                       main.force_flags
+  fi
   print.system_info
   print.separator
 

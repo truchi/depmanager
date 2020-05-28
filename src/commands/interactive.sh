@@ -76,7 +76,11 @@ command.interactive() {
   [[ $COMMAND == "status" ]] && return
 
   # Ask for flags
-  local options=("Quiet" "Yes" "Simulate")
+  local options=()
+  $_QUIET    && options+=("Quiet")    || options+=("quiet")
+  $_YES      && options+=("Yes")      || options+=("yes")
+  $_SIMULATE && options+=("Simulate") || options+=("simulate")
+
   print.choice 3 "${BOLD}Flags?${NO_COLOR}" options[@]
   string.contains "$REPLY" "quiet"    && QUIET=true
   string.contains "$REPLY" "yes"      && YES=true
