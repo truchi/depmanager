@@ -1027,6 +1027,17 @@ core.manager.version() {
 }
 
 #
+# Writes cache for "__managers.${1}.list.local" (if exists)
+#
+core.manager.cache_list() {
+  local manager="$1"
+
+  if helpers.command_exists "__managers.${manager}.list.local"; then
+    cache "managers_${manager}_list_local" true true "__managers.${manager}.list.local" > /dev/null
+  fi
+}
+
+#
 # Asynchronously writes the manager $1 version and packages versions (local/remote) in cache
 # Runs command $2 as callback for async version calls, with $... args
 #
@@ -1046,6 +1057,9 @@ core.manager.async.versions() {
 
   # Write CSV cache
   core.csv.get "$manager" > /dev/null
+
+  # Cache list
+  core.manager.cache_list "$manager"
 
   # For all manager's packages
   local i=0
@@ -1239,33 +1253,25 @@ managers.npm.version() {
   npm --version
 }
 
-#
-# Returns true if package $1 is installed, false otherwise
-#
-managers.npm.package.is_installed() {
-  local package=$1
-  local list
-  list=$(npm list --global --depth 0 "$package")
-
-  echo "$list" | grep "── $package@" >/dev/null 2>&1
+__managers.npm.list.local() {
+  npm list --global --depth 0 | grep "── "
 }
 
 #
 # Returns the local version of package $1
 #
 managers.npm.package.version.local() {
-  local npm_list
-  # FIXME grep instead of sed 2
-  npm_list=$(npm list --global --depth 0 "$1" | sed '2q;d' | sed 's/└── //')
+  local list
+  list=$(cache "managers_npm_list_local" true | grep "── $1@")
 
   # If npm returns "(empty)", package is not installed
-  if [[ "$npm_list" == "(empty)" ]]; then
+  if [[ "$list" == "" ]]; then
     echo "$PACKAGE_NONE"
     return
   fi
 
   # Extract version
-  sed 's/.*@//' <<< "$npm_list"
+  sed 's/.*@//' <<< "$list"
 }
 
 #
@@ -1528,6 +1534,9 @@ command.install() {
 
   print.clear.line
   print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
+
+  # Cache list
+  core.manager.cache_list "$manager"
 
   IFS='
 '

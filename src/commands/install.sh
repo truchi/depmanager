@@ -33,6 +33,9 @@ command.install() {
   print.clear.line
   print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
 
+  # Cache list
+  core.manager.cache_list "$manager"
+
   IFS='
 '
   for line in $(core.csv.get "$manager"); do

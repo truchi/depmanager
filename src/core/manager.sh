@@ -60,6 +60,17 @@ core.manager.version() {
 }
 
 #
+# Writes cache for "__managers.${1}.list.local" (if exists)
+#
+core.manager.cache_list() {
+  local manager="$1"
+
+  if helpers.command_exists "__managers.${manager}.list.local"; then
+    cache "managers_${manager}_list_local" true true "__managers.${manager}.list.local" > /dev/null
+  fi
+}
+
+#
 # Asynchronously writes the manager $1 version and packages versions (local/remote) in cache
 # Runs command $2 as callback for async version calls, with $... args
 #
@@ -79,6 +90,9 @@ core.manager.async.versions() {
 
   # Write CSV cache
   core.csv.get "$manager" > /dev/null
+
+  # Cache list
+  core.manager.cache_list "$manager"
 
   # For all manager's packages
   local i=0
