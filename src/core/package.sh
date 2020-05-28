@@ -92,24 +92,3 @@ __core.package.version() {
   cache "core_package_version_${version_type}__${manager}__${package}" true "$write_cache" "$cmd" "$package"
 }
 
-#
-# Installs package $2 of manager $1
-#
-core.package.install() {
-  local manager="$1"
-  local package="$2"
-
-  local cmd
-  "managers.${manager}.package.install_command" "$package" "$QUIET"
-  local msg="${BOLD}Run ${YELLOW}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
-
-  if $SIMULATE; then
-    print.confirm "$msg" "no"
-    return
-  fi
-
-  if print.confirm "$msg"; then
-    ${cmd[*]}
-  fi
-}
-
