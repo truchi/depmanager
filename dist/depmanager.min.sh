@@ -577,9 +577,7 @@ print.pre_run_confirm() {
   $YES      && cmd+=" --yes"
   $SIMULATE && cmd+=" --simulate"
 
-  if $SIMULATE; then print.confirm "${BOLD}Simulate ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
-  else               print.confirm "${BOLD}Run ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
-  fi
+  print.confirm "${BOLD}Run ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
 }
 #!/bin/bash
 
@@ -1259,7 +1257,7 @@ command.install() {
 
     if ! $exists; then
       print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} does not exists" 2
+      print.error "${BOLD}$manager's $package${NO_COLOR} does not exists" 2
       continue
     fi
 
@@ -1278,13 +1276,13 @@ command.install() {
 
     if $is_installed; then
       if $is_uptodate; then
-        print.success "${BOLD}$package${NO_COLOR} is up-to-date (${BOLD}$local_version${NO_COLOR})"
+        print.success "${BOLD}$manager's $package${NO_COLOR} is up-to-date (${BOLD}$local_version${NO_COLOR})"
       else
-        print.warning "${BOLD}$package${NO_COLOR} is not up-to-date (local: ${BOLD}$local_version${NO_COLOR}, remote: ${BOLD}$remote_version${NO_COLOR})"
+        print.warning "${BOLD}$manager's $package${NO_COLOR} is not up-to-date (local: ${BOLD}$local_version${NO_COLOR}, remote: ${BOLD}$remote_version${NO_COLOR})"
         command.install.package "$manager" "$package" "$QUIET"
       fi
     else
-      local msg="${BOLD}$package${NO_COLOR} is not installed (remote: ${BOLD}$remote_version${NO_COLOR})"
+      local msg="${BOLD}$manager's $package${NO_COLOR} is not installed (remote: ${BOLD}$remote_version${NO_COLOR})"
       if [[ $COMMAND == "install" ]]; then
         print.warning "$msg"
         command.install.package "$manager" "$package"
