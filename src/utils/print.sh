@@ -148,6 +148,7 @@ print.confirm() {
 
 print.clear.line() {
   $IN_TERMINAL || return
+  $QUIET       && return
   tput cuu1
   tput el
 }
