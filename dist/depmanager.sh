@@ -580,6 +580,7 @@ print.confirm() {
 
 print.clear.line() {
   $IN_TERMINAL || return
+  $QUIET       && return
   tput cuu1
   tput el
 }
@@ -1504,13 +1505,13 @@ command.install.package() {
 command.install() {
   local manager="$1"
 
-  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
+  $IN_TERMINAL && print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
 
   local manager_version
   core.manager.version "$manager" > /dev/null
   manager_version=$(core.manager.version "$manager")
 
-  $QUIET || print.clear.line
+  print.clear.line
   print.info "${BOLD}${BLUE}$manager${NO_COLOR} ($manager_version)"
 
   IFS='
@@ -1522,13 +1523,13 @@ command.install() {
 
     local package="${array[0]}"
 
-    print.info "${BOLD}$package${NO_COLOR} ..."
+    $IN_TERMINAL && print.info "${BOLD}$package${NO_COLOR} ..."
 
     local exists=false
     core.package.exists "$manager" "$package" && exists=true
 
     if ! $exists; then
-      $QUIET || print.clear.line
+      print.clear.line
       print.error "${BOLD}$package${NO_COLOR} does not exists" 2
       continue
     fi
@@ -1544,7 +1545,7 @@ command.install() {
     core.package.is_installed "$manager" "$package" && is_installed=true
     core.package.is_uptodate  "$manager" "$package" && is_uptodate=true
 
-    $QUIET || print.clear.line
+    print.clear.line
 
     if $is_installed; then
       if $is_uptodate; then

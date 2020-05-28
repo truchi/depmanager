@@ -24,7 +24,7 @@ command.install.package() {
 command.install() {
   local manager="$1"
 
-  print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
+  $IN_TERMINAL && print.info "${BOLD}${BLUE}$manager${NO_COLOR} (...)"
 
   local manager_version
   core.manager.version "$manager" > /dev/null
@@ -42,7 +42,7 @@ command.install() {
 
     local package="${array[0]}"
 
-    print.info "${BOLD}$package${NO_COLOR} ..."
+    $IN_TERMINAL && print.info "${BOLD}$package${NO_COLOR} ..."
 
     local exists=false
     core.package.exists "$manager" "$package" && exists=true
