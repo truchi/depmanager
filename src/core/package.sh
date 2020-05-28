@@ -101,7 +101,7 @@ core.package.install() {
 
   local cmd
   "managers.${manager}.package.install_command" "$package" "$QUIET"
-  local msg="${BOLD}Run \`${YELLOW}${cmd[*]}${NO_COLOR}\`${BOLD}?${NO_COLOR}"
+  local msg="${BOLD}Run ${YELLOW}${cmd[*]}${NO_COLOR}${BOLD}?${NO_COLOR}"
 
   if $SIMULATE; then
     print.confirm "$msg" "no"

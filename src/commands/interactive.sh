@@ -42,7 +42,8 @@ command.interactive() {
 
       # Ask for path
       message="CSV (${default_color}$default_path${NO_COLOR}):"
-      new_path=$(print.input 0 "$message")
+      print.input 0 "$message"
+      new_path="$REPLY"
       [[ "$new_path" =~ ^$ ]] && new_path="$default_path"
       CSVS[$manager]="$new_path"
 
@@ -68,47 +69,17 @@ command.interactive() {
   print.separator
 
   # Ask for command
-  local message="${BOLD}Command?${NO_COLOR} "
-  message+="(${BOLD}${YELLOW}S${NO_COLOR}tatus/"
-  message+="${BOLD}${YELLOW}i${NO_COLOR}nstall/"
-  message+="${BOLD}${YELLOW}u${NO_COLOR}pdate)"
+  local options=("Status" "install" "update")
+  print.choice 1 "${BOLD}Command?${NO_COLOR}" options[@]
+  COMMAND="$REPLY"
 
-  local cmd
-  cmd=$(print.input 1 "$message")
-
-  # Carriage return if user did not press enter
-  [[ ! "$cmd" =~ ^$ ]] && echo
-
-  if   [[ "$cmd" =~ ^[i]$ ]]; then COMMAND="install"
-  elif [[ "$cmd" =~ ^[u]$ ]]; then COMMAND="update"
-  else                             COMMAND="status"
-  fi
-
-  # Redraw with answer
-  print.clear.line
-  print.fake.input "$message" "${BOLD}${YELLOW}$COMMAND${NO_COLOR}"
+  [[ $COMMAND == "status" ]] && return
 
   # Ask for flags
-  if [[ $COMMAND != "status" ]]; then
-    local message="${BOLD}Flags?${NO_COLOR} "
-    message+="(${BOLD}${YELLOW}q${NO_COLOR}uiet/"
-    message+="${BOLD}${YELLOW}y${NO_COLOR}es/"
-    message+="${BOLD}${YELLOW}s${NO_COLOR}imulate)"
-
-    local flags
-    flags=$(print.input 3 "$message")
-
-    # Carriage return if user did not press enter
-    (( $(string.length "$flags") == 3 )) && echo
-
-    local answer=""
-    if [[ "$flags" =~ [qQ] ]]; then QUIET=true   ; answer+="quiet "   ; fi
-    if [[ "$flags" =~ [yY] ]]; then YES=true     ; answer+="yes "     ; fi
-    if [[ "$flags" =~ [sS] ]]; then SIMULATE=true; answer+="simulate "; fi
-
-    # Redraw with answer (interactive should neven be quiet)
-    print.clear.line
-    print.fake.input "$message" "${BOLD}${YELLOW}$answer${NO_COLOR}"
-  fi
+  local options=("Quiet" "Yes" "Simulate")
+  print.choice 3 "${BOLD}Flags?${NO_COLOR}" options[@]
+  string.contains "$REPLY" "quiet"    && QUIET=true
+  string.contains "$REPLY" "yes"      && YES=true
+  string.contains "$REPLY" "simulate" && SIMULATE=true
 }
 

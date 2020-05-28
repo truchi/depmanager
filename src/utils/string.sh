@@ -72,6 +72,20 @@ string.slice() {
   echo "${string:$offset:$length}"
 }
 
+#
+# Returns $1 lowercased
+#
+string.lowercase() {
+  echo "${1,,}"
+}
+
+#
+# Returns true if $1 is uppercased, false otherwise
+#
+string.is_uppercase() {
+  [[ "$1" == "${1^^}" ]]
+}
+
 string.center() {
   local str="$1"
   local width="$2"

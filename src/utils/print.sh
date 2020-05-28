@@ -6,7 +6,6 @@ print.separator() {
 }
 
 print.date() {
-  $QUIET && return
   echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
 }
 
@@ -14,81 +13,117 @@ print.error() {
   echo "$(print.date) ${RED}${BOLD}✗${NO_COLOR} $*"
 }
 
-print.warning() {
-  $QUIET && return
-  echo "$(print.date) ${YELLOW}${BOLD}!${NO_COLOR} $*"
-}
-
-print.success() {
-  $QUIET && return
-  echo "$(print.date) ${GREEN}${BOLD}✔${NO_COLOR} $*"
-}
-
-print.info() {
-  $QUIET && return
-  echo "$(print.date) ${BLUE}${BOLD}i${NO_COLOR} $*"
-}
-
 print.custom() {
   $QUIET && return
   echo "$(print.date) $*"
 }
 
-print.confirm() {
-  local msg="${BOLD}$1${NO_COLOR} (${BOLD}${YELLOW}Y${NO_COLOR})"
-  local auto_answer="$2"
-
-  if helpers.is_set "$auto_answer"; then
-    print.fake.input "$msg" "${BOLD}${YELLOW}$auto_answer${NO_COLOR}"
-    [[ "$auto_answer" == "yes" ]]
-    return
-  fi
-
-  if $YES; then
-    print.fake.input "$msg" "${BOLD}${YELLOW}yes${NO_COLOR}"
-    true
-    return
-  fi
-
-  # Prompt confirmation message
-  local reply
-  reply=$(print.input 1 "$msg")
-
-  # Carriage return if user did not press enter
-  [[ ! "$reply" =~ ^$ ]] && echo
-
-  # Accepts <Enter>, Y or y
-  local confirmed=false
-  local answer="no"
-  if [[ "$reply" =~ ^[Yy]$ || "$reply" =~ ^$ ]]; then
-    confirmed=true
-    answer="yes"
-  fi
-
-  # Redraw with answer
-  print.clear.line
-  print.fake.input "$msg" "${BOLD}${YELLOW}$answer${NO_COLOR}"
-
-  $confirmed
+print.warning() {
+  print.custom "${YELLOW}${BOLD}!${NO_COLOR} $*"
 }
 
-# MUST NOT be called when $QUIET or ! $IN_TERMINAL
+print.success() {
+  print.custom "${GREEN}${BOLD}✔${NO_COLOR} $*"
+}
+
+print.info() {
+  print.custom "${BLUE}${BOLD}i${NO_COLOR} $*"
+}
+
+print.question() {
+  print.custom "${YELLOW}${BOLD}?${NO_COLOR} $*"
+}
+
 print.input() {
   local n="$1"
   local message="$2"
 
   # Prompt input
   if ((n == 0)); then
-    read -p "$(print.fake.input "$message")" -r
+    read -p "$(print.question "$message ")" -r
   else
-    read -p "$(print.fake.input "$message")" -n "$n" -r
-  fi
+    read -p "$(print.question "$message ")" -n "$n" -r
 
-  echo "$REPLY"
+    # Carriage return if user did not press enter
+    (( $(string.length "$REPLY") == "$n" )) && echo
+  fi
 }
 
-print.fake.input() {
-  print.custom "${YELLOW}${BOLD}?${NO_COLOR} $1 $2"
+print.choice() {
+  local n="$1"
+  local message="$2"
+  local options=("${!3}")
+  local no_valid_answers="$4"
+  local auto_answer="$5"
+  local options_str=""
+  local letters=()
+  local defaults=()
+
+  # Parse options
+  local options_count="${#options[@]}"
+  for i in "${!options[@]}"; do
+    local option="${options[$i]}"
+    local letter
+    local rest
+    letter=$(string.slice "$option" 0 1)
+    rest=$(string.slice "$option" 1)
+
+    letters+=("$letter")
+    options_str+="${BOLD}${YELLOW}$letter${NO_COLOR}$rest"
+    ((i < $((options_count - 1)))) && options_str+=", "
+    string.is_uppercase "$letter" && defaults+=(true) || defaults+=(false)
+  done
+
+  message="$message ($options_str)"
+
+  # Prompt
+  if string.is_empty "$auto_answer"; then
+    print.input "$n" "$message"
+  else
+    REPLY="$auto_answer"
+  fi
+
+  local answer
+  local answer_arr=()
+  if string.is_empty "$REPLY"; then
+    # When reply is empty, answer is made of default options
+    for i in "${!defaults[@]}"; do
+      ${defaults[$i]} && answer_arr+=("${options[$i]}")
+    done
+  else
+    # Look for option letters in reply
+    for i in "${!options[@]}"; do
+      local letter="${letters[$i]}"
+      local letter_lower
+      letter_lower=$(string.lowercase "${letters[$i]}")
+
+      if string.contains "$REPLY" "$letter" || string.contains "$REPLY" "$letter_lower"; then
+        answer_arr+=("${options[$i]}")
+      fi
+    done
+  fi
+
+  # Concat answers, and default to $no_valid_answers
+  answer=$(string.lowercase "${answer_arr[*]}")
+  string.is_empty "$answer" && answer="$no_valid_answers"
+
+  # Redraw with answer
+  string.is_empty "$auto_answer" && print.clear.line
+  print.question "$message ${BOLD}${YELLOW}$answer${NO_COLOR}"
+
+  # "Return"
+  REPLY="$answer"
+}
+
+print.confirm() {
+  local message="$1"
+  local auto_answer="$2"
+  local options=("Yes")
+
+  string.is_empty "$auto_answer" && $YES && auto_answer="y"
+
+  print.choice 1 "$message" options[@] "no" "$auto_answer"
+  [[ "$REPLY" == "yes" ]]
 }
 
 print.clear.line() {
@@ -193,8 +228,8 @@ print.pre_run_confirm() {
   ! $SIMULATE && print.info "${BOLD}${BLUE}Tip:${NO_COLOR} run with --simulate first"
 
   # Ask for confirmation
-  if $SIMULATE; then print.confirm "Simulate $COMMAND?"
-  else               print.confirm "Run $COMMAND?"
+  if $SIMULATE; then print.confirm "${BOLD}Simulate ${YELLOW}$COMMAND${NO_COLOR}${BOLD}?${NO_COLOR}"
+  else               print.confirm "${BOLD}Run ${YELLOW}$COMMAND${NO_COLOR}${BOLD}?${NO_COLOR}"
   fi
 }
 
