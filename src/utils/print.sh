@@ -142,10 +142,13 @@ ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
 print.help() {
+  local cmd
+  cmd=$(basename "$0")
+
   echo "${BOLD}${BLUE}Usage:${NO_COLOR}
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-h|--version]
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-v|--help]
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} <cmd> [options|flags]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} [-h|--version]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} [-v|--help]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your packages.

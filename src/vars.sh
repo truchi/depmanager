@@ -23,8 +23,6 @@ PACKAGE_NONE="<NONE>"
 DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
 
-DEPMANAGER_CMD=$(basename "$0")
-
 IN_TERMINAL=false
 if [ -t 1 ]; then
   IN_TERMINAL=true

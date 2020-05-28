@@ -44,8 +44,6 @@ PACKAGE_NONE="<NONE>"
 DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
 
-DEPMANAGER_CMD=$(basename "$0")
-
 IN_TERMINAL=false
 if [ -t 1 ]; then
   IN_TERMINAL=true
@@ -82,8 +80,6 @@ done
 PACKAGE_NONE="<NONE>"
 DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
-
-DEPMANAGER_CMD=$(basename "$0")
 
 IN_TERMINAL=false
 if [ -t 1 ]; then
@@ -582,10 +578,13 @@ ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
 print.help() {
+  local cmd
+  cmd=$(basename "$0")
+
   echo "${BOLD}${BLUE}Usage:${NO_COLOR}
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-h|--version]
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} [-v|--help]
-  ${BOLD}${GREEN}$DEPMANAGER_CMD${NO_COLOR} <cmd> [options|flags]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} [-h|--version]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} [-v|--help]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your packages.
@@ -794,8 +793,6 @@ done
 PACKAGE_NONE="<NONE>"
 DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
-
-DEPMANAGER_CMD=$(basename "$0")
 
 IN_TERMINAL=false
 if [ -t 1 ]; then
@@ -1093,7 +1090,7 @@ core.manager.install_or_update() {
         print.warning "$msg"
         core.package.install "$manager" "$package"
       else
-        print.warning "$msg, run ${BOLD}${YELLOW}$DEPMANAGER_CMD install${NO_COLOR} to install"
+        print.warning "$msg, run ${BOLD}${YELLOW}install${NO_COLOR} to install"
       fi
     fi
   done
@@ -1582,7 +1579,7 @@ main.parse_args() {
     I|interactive)
       COMMAND="interactive"
       if ! $IN_TERMINAL; then
-        print.error "Cannot run \`$DEPMANAGER_CMD interactive\` outside of a terminal"
+        print.error "Cannot run interactive outside of a terminal"
         exit 1
       fi
       ;;

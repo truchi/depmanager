@@ -63,7 +63,7 @@ main.parse_args() {
     I|interactive)
       COMMAND="interactive"
       if ! $IN_TERMINAL; then
-        print.error "Cannot run \`$DEPMANAGER_CMD interactive\` outside of a terminal"
+        print.error "Cannot run interactive outside of a terminal"
         exit 1
       fi
       ;;
