@@ -490,10 +490,11 @@ print.input() {
   local message="$2"
 
   # Prompt input
+  echo -n "$(print.question "$message ")"
   if ((n == 0)); then
-    read -p "$(print.question "$message ")" -r
+    read -p "" -r
   else
-    read -p "$(print.question "$message ")" -n "$n" -r
+    read -p "" -n "$n" -r
 
     # Carriage return if user did not press enter
     (( $(string.length "$REPLY") == "$n" )) && echo

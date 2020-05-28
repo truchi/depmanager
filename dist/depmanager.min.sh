@@ -374,10 +374,11 @@ print.input() {
   local n="$1"
   local message="$2"
 
+  echo -n "$(print.question "$message ")"
   if ((n == 0)); then
-    read -p "$(print.question "$message ")" -r
+    read -p "" -r
   else
-    read -p "$(print.question "$message ")" -n "$n" -r
+    read -p "" -n "$n" -r
 
     (( $(string.length "$REPLY") == "$n" )) && echo
   fi
