@@ -1367,17 +1367,25 @@ main.run() {
   done
 }
 
+main.force_flags() {
+  ! $IN_TERMINAL && YES=true
+  $SIMULATE && QUIET=false
+  $QUIET && YES=true
+}
+
+main.reset_flags() {
+  QUIET=false
+  YES=false
+  SIMULATE=false
+}
+
 main() {
   main.parse_args "$@"
   core.dir.resolve
   core.manager.system
 
-  if [[ "$COMMAND" == "interactive" ]]; then
-    QUIET=false
-    YES=false
-    SIMULATE=false
-  fi
-
+  main.force_flags
+  [[ "$COMMAND" == "interactive" ]] && main.reset_flags
   print.system_info
   print.separator
 
@@ -1386,10 +1394,7 @@ main() {
     print.separator
   fi
 
-  ! $IN_TERMINAL && YES=true
-  $SIMULATE && QUIET=false
-  $QUIET && YES=true
-
+  main.force_flags
   print.csvs_info
   print.separator
 

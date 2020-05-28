@@ -1673,6 +1673,21 @@ main.run() {
   done
 }
 
+main.force_flags() {
+  # Force yes when not running in a terminal
+  ! $IN_TERMINAL && YES=true
+  # Simulate implies !quiet
+  $SIMULATE && QUIET=false
+  # Quiet implies yes
+  $QUIET && YES=true
+}
+
+main.reset_flags() {
+  QUIET=false
+  YES=false
+  SIMULATE=false
+}
+
 #
 # Main
 # Parses arguments, resolves files, run specified command
@@ -1682,13 +1697,8 @@ main() {
   core.dir.resolve
   core.manager.system
 
-  # Unset flags before interactive
-  if [[ "$COMMAND" == "interactive" ]]; then
-    QUIET=false
-    YES=false
-    SIMULATE=false
-  fi
-
+  main.force_flags
+  [[ "$COMMAND" == "interactive" ]] && main.reset_flags
   print.system_info
   print.separator
 
@@ -1698,13 +1708,7 @@ main() {
     print.separator
   fi
 
-  # Force yes when not running in a terminal
-  ! $IN_TERMINAL && YES=true
-  # Simulate implies !quiet
-  $SIMULATE && QUIET=false
-  # Quiet implies yes
-  $QUIET && YES=true
-
+  main.force_flags
   print.csvs_info
   print.separator
 
