@@ -271,8 +271,6 @@ print.pre_run_confirm() {
   $SIMULATE && cmd+=" --simulate"
 
   # Ask for confirmation
-  if $SIMULATE; then print.confirm "${BOLD}Simulate ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
-  else               print.confirm "${BOLD}Run ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
-  fi
+  print.confirm "${BOLD}Run ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
 }
 
