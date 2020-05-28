@@ -664,11 +664,16 @@ print.csvs_info() {
 }
 
 print.pre_run_confirm() {
-  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip:${NO_COLOR} run with --simulate first"
+  ! $SIMULATE && print.info "${BOLD}${BLUE}Tip:${NO_COLOR} run with --simulate/-S first"
+
+  local cmd="$COMMAND"
+  $QUIET    && cmd+=" --quiet"
+  $YES      && cmd+=" --yes"
+  $SIMULATE && cmd+=" --simulate"
 
   # Ask for confirmation
-  if $SIMULATE; then print.confirm "${BOLD}Simulate ${YELLOW}$COMMAND${NO_COLOR}${BOLD}?${NO_COLOR}"
-  else               print.confirm "${BOLD}Run ${YELLOW}$COMMAND${NO_COLOR}${BOLD}?${NO_COLOR}"
+  if $SIMULATE; then print.confirm "${BOLD}Simulate ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
+  else               print.confirm "${BOLD}Run ${YELLOW}$cmd${NO_COLOR}${BOLD}?${NO_COLOR}"
   fi
 }
 #!/bin/bash
