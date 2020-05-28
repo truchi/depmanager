@@ -1,21 +1,40 @@
 # shellcheck shell=bash
 
-print.separator() {
-  $QUIET && return
-  echo "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
-}
+print.safe() {
+  local message="$1"
+  local respect_quiet="$2"
+  local output="$3"
 
-print.date() {
-  echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
-}
+  # respect_quiet defaults to true, otherwise is false
+  string.is_empty "$respect_quiet" && respect_quiet=true
+  [[ "$respect_quiet" == true ]]   || respect_quiet=false
 
-print.error() {
-  echo "$(print.date) ${RED}${BOLD}✗${NO_COLOR} $*"
+  $respect_quiet && $QUIET && return
+
+  # output defaults to 1 (stdout), otherwise is 2 (stderr)
+  string.is_empty "$output" && output=1
+  [[ "$output" == 1 ]]      || output=2
+
+  # Strip sequences if output is a file
+  [[ "$output" == "1" ]] && [[ -f /dev/stdout ]] && message=$(string.strip_sequences "$message")
+  [[ "$output" == "2" ]] && [[ -f /dev/stderr ]] && message=$(string.strip_sequences "$message")
+
+  # Echo to output
+  if [[ "$output" == "1" ]]; then echo "$message"
+  else                            echo "$message" >&2
+  fi
 }
 
 print.custom() {
-  $QUIET && return
-  echo "$(print.date) $*"
+  print.safe "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR} $1" "$2" "$3"
+}
+
+print.separator() {
+  print.safe "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
+}
+
+print.error() {
+  print.custom "${RED}${BOLD}✗${NO_COLOR} $1" false "$2"
 }
 
 print.warning() {

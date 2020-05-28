@@ -23,18 +23,16 @@ DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
 
 IN_TERMINAL=false
-if [ -t 1 ]; then
-  IN_TERMINAL=true
-  NO_COLOR=$(tput sgr0)
-  BOLD=$(tput bold)
-  RED=$(tput setaf 1)
-  GREEN=$(tput setaf 2)
-  YELLOW=$(tput setaf 3)
-  BLUE=$(tput setaf 4)
-  MAGENTA=$(tput setaf 5)
-  CYAN=$(tput setaf 6)
-  WHITE=$(tput setaf 7)
-fi
+[ -t 1 ] && IN_TERMINAL=true
+NO_COLOR=$(tput sgr0)
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+BLUE=$(tput setaf 4)
+MAGENTA=$(tput setaf 5)
+CYAN=$(tput setaf 6)
+WHITE=$(tput setaf 7)
 
 SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(npm rust)
@@ -60,18 +58,16 @@ DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
 
 IN_TERMINAL=false
-if [ -t 1 ]; then
-  IN_TERMINAL=true
-  NO_COLOR=$(tput sgr0)
-  BOLD=$(tput bold)
-  RED=$(tput setaf 1)
-  GREEN=$(tput setaf 2)
-  YELLOW=$(tput setaf 3)
-  BLUE=$(tput setaf 4)
-  MAGENTA=$(tput setaf 5)
-  CYAN=$(tput setaf 6)
-  WHITE=$(tput setaf 7)
-fi
+[ -t 1 ] && IN_TERMINAL=true
+NO_COLOR=$(tput sgr0)
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+BLUE=$(tput setaf 4)
+MAGENTA=$(tput setaf 5)
+CYAN=$(tput setaf 6)
+WHITE=$(tput setaf 7)
 
 helpers.is_set() {
   [[ -n "$1" ]]
@@ -325,22 +321,37 @@ array.includes() {
   false
 }
 
-print.separator() {
-  $QUIET && return
-  echo "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
-}
+print.safe() {
+  local message="$1"
+  local respect_quiet="$2"
+  local output="$3"
 
-print.date() {
-  echo "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR}"
-}
+  string.is_empty "$respect_quiet" && respect_quiet=true
+  [[ "$respect_quiet" == true ]]   || respect_quiet=false
 
-print.error() {
-  echo "$(print.date) ${RED}${BOLD}✗${NO_COLOR} $*"
+  $respect_quiet && $QUIET && return
+
+  string.is_empty "$output" && output=1
+  [[ "$output" == 1 ]]      || output=2
+
+  [[ "$output" == "1" ]] && [[ -f /dev/stdout ]] && message=$(string.strip_sequences "$message")
+  [[ "$output" == "2" ]] && [[ -f /dev/stderr ]] && message=$(string.strip_sequences "$message")
+
+  if [[ "$output" == "1" ]]; then echo "$message"
+  else                            echo "$message" >&2
+  fi
 }
 
 print.custom() {
-  $QUIET && return
-  echo "$(print.date) $*"
+  print.safe "${MAGENTA}[$(date +"%Y-%m-%d %H:%M:%S")]${NO_COLOR} $1" "$2" "$3"
+}
+
+print.separator() {
+  print.safe "${MAGENTA}~~~~~~~~~~~~~~~~~~~~~${NO_COLOR}"
+}
+
+print.error() {
+  print.custom "${RED}${BOLD}✗${NO_COLOR} $1" false "$2"
 }
 
 print.warning() {
@@ -678,18 +689,16 @@ DEPMANAGER_TMP_DIR="/tmp/depmanager"
 mkdir -p "$DEPMANAGER_TMP_DIR"
 
 IN_TERMINAL=false
-if [ -t 1 ]; then
-  IN_TERMINAL=true
-  NO_COLOR=$(tput sgr0)
-  BOLD=$(tput bold)
-  RED=$(tput setaf 1)
-  GREEN=$(tput setaf 2)
-  YELLOW=$(tput setaf 3)
-  BLUE=$(tput setaf 4)
-  MAGENTA=$(tput setaf 5)
-  CYAN=$(tput setaf 6)
-  WHITE=$(tput setaf 7)
-fi
+[ -t 1 ] && IN_TERMINAL=true
+NO_COLOR=$(tput sgr0)
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+BLUE=$(tput setaf 4)
+MAGENTA=$(tput setaf 5)
+CYAN=$(tput setaf 6)
+WHITE=$(tput setaf 7)
 
 core.dir.resolve() {
   local dir=""
@@ -1038,7 +1047,7 @@ command.interactive() {
       local new_path
 
       if $first && ! $is_ignored && ! $exists; then
-        print.error "${RED}$path${NO_COLOR} not found"
+        print.warning "${RED}$path${NO_COLOR} not found"
       fi
 
       message="CSV (${default_color}$default_path${NO_COLOR}):"
@@ -1057,7 +1066,7 @@ command.interactive() {
       elif $exists; then
         print.success "$message ${GREEN}$path${NO_COLOR}"
       else
-        print.error "$message ${RED}$path${NO_COLOR}"
+        print.warning "$message ${RED}$path${NO_COLOR}"
       fi
 
       first=false
@@ -1224,7 +1233,7 @@ command.install() {
 
     if ! $exists; then
       $QUIET || print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} does not exists"
+      print.error "${BOLD}$package${NO_COLOR} does not exists" 2
       continue
     fi
 
@@ -1286,7 +1295,7 @@ main.parse_args() {
     I|interactive)
       COMMAND="interactive"
       if ! $IN_TERMINAL; then
-        print.error "Cannot run interactive outside of a terminal"
+        print.error "Cannot run interactive outside of a terminal" 2
         exit 1
       fi
       ;;
@@ -1297,7 +1306,7 @@ main.parse_args() {
     u|update)
       COMMAND="update";;
     *)
-      print.error "Unknown command: $1"
+      print.error "Unknown command: $1" 2
       exit 1
   esac
 
@@ -1321,7 +1330,7 @@ main.parse_args() {
         SIMULATE=true; shift;;
       -*)
         if string.equals "$2" "-"; then
-          print.error "There might be an error in your command, found a lone '-'"
+          print.error "There might be an error in your command, found a lone '-'" 2
           exit 1
         fi
 
@@ -1335,13 +1344,13 @@ main.parse_args() {
         string.contains "$flags" "S" && SIMULATE=true
 
         if ! string.is_empty "$non_flags"; then
-          print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
+          print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}" 2
           exit 1
         fi
 
         shift;;
       *)
-        print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
+        print.error "Unknown option: ${BOLD}$2${NO_COLOR}" 2
         exit 1
     esac
   done

@@ -37,7 +37,7 @@ command.interactive() {
 
       # On the first run, print error if supplied path does not exists
       if $first && ! $is_ignored && ! $exists; then
-        print.error "${RED}$path${NO_COLOR} not found"
+        print.warning "${RED}$path${NO_COLOR} not found"
       fi
 
       # Ask for path
@@ -59,7 +59,7 @@ command.interactive() {
       elif $exists; then
         print.success "$message ${GREEN}$path${NO_COLOR}"
       else
-        print.error "$message ${RED}$path${NO_COLOR}"
+        print.warning "$message ${RED}$path${NO_COLOR}"
       fi
 
       first=false

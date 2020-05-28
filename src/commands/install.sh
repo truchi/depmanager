@@ -49,7 +49,7 @@ command.install() {
 
     if ! $exists; then
       $QUIET || print.clear.line
-      print.error "${BOLD}$package${NO_COLOR} does not exists"
+      print.error "${BOLD}$package${NO_COLOR} does not exists" 2
       continue
     fi
 

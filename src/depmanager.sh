@@ -63,7 +63,7 @@ main.parse_args() {
     I|interactive)
       COMMAND="interactive"
       if ! $IN_TERMINAL; then
-        print.error "Cannot run interactive outside of a terminal"
+        print.error "Cannot run interactive outside of a terminal" 2
         exit 1
       fi
       ;;
@@ -74,7 +74,7 @@ main.parse_args() {
     u|update)
       COMMAND="update";;
     *)
-      print.error "Unknown command: $1"
+      print.error "Unknown command: $1" 2
       exit 1
   esac
 
@@ -99,7 +99,7 @@ main.parse_args() {
         SIMULATE=true; shift;;
       -*)
         if string.equals "$2" "-"; then
-          print.error "There might be an error in your command, found a lone '-'"
+          print.error "There might be an error in your command, found a lone '-'" 2
           exit 1
         fi
 
@@ -113,13 +113,13 @@ main.parse_args() {
         string.contains "$flags" "S" && SIMULATE=true
 
         if ! string.is_empty "$non_flags"; then
-          print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}"
+          print.error "Unknown flags: ${BOLD}$non_flags${NO_COLOR}" 2
           exit 1
         fi
 
         shift;;
       *)
-        print.error "Unknown option: ${BOLD}$2${NO_COLOR}"
+        print.error "Unknown option: ${BOLD}$2${NO_COLOR}" 2
         exit 1
     esac
   done
