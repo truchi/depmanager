@@ -567,7 +567,7 @@ print.version() {
 
 print.summary() {
   echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print.version)
-${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
+${CYAN}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
 print.help() {
@@ -581,7 +581,7 @@ print.help() {
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your packages. (apt, npm)
-  Reads existing non-empty ${MAGENTA}<manager>.csv${NO_COLOR}${WHITE} files in \$DEPMANAGER_DIR (defaults to ${MAGENTA}\$HOME/.config/depmanager${NO_COLOR}${WHITE}).${NO_COLOR}
+  Reads existing non-empty ${CYAN}<manager>.csv${NO_COLOR}${WHITE} files in \$DEPMANAGER_DIR (defaults to ${CYAN}\$HOME/.config/depmanager${NO_COLOR}${WHITE}).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
   I${WHITE},${NO_COLOR} interactive               ${WHITE}Runs in interactive mode: asks for CSVs path/url, command and flags.${NO_COLOR}
@@ -599,7 +599,7 @@ ${BOLD}${BLUE}Flags:${NO_COLOR}
   -S${WHITE},${NO_COLOR} --simulate               ${WHITE}Answers \`no\` to installation prompts. Implies NOT \`--quiet\`.${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                 ${CYAN}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 
@@ -959,13 +959,13 @@ core.manager.version() {
 }
 
 #
-# Writes cache for "__managers.${1}.list.local" (if exists)
+# Writes cache for "managers.${1}.list.local" (if exists)
 #
 core.manager.cache_list() {
   local manager="$1"
 
-  if helpers.command_exists "__managers.${manager}.list.local"; then
-    cache "managers_${manager}_list_local" true true "__managers.${manager}.list.local" > /dev/null
+  if helpers.command_exists "managers.${manager}.list.local"; then
+    cache "managers_${manager}_list_local" true true "managers.${manager}.list.local" > /dev/null
   fi
 }
 
@@ -1185,7 +1185,10 @@ managers.npm.version() {
   npm --version
 }
 
-__managers.npm.list.local() {
+#
+# Returns a list of installed packages
+#
+managers.npm.list.local() {
   npm list --global --depth 0 | grep "── "
 }
 
