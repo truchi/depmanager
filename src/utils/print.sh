@@ -159,7 +159,7 @@ print.version() {
 
 print.summary() {
   echo "${BOLD}${GREEN}depmanager${NO_COLOR} $(print.version)
-${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}"
+${CYAN}https://github.com/truchi/depmanager${NO_COLOR}"
 }
 
 print.help() {
@@ -173,7 +173,7 @@ print.help() {
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
   ${WHITE}Manages your packages. (apt, npm)
-  Reads existing non-empty ${MAGENTA}<manager>.csv${NO_COLOR}${WHITE} files in \$DEPMANAGER_DIR (defaults to ${MAGENTA}\$HOME/.config/depmanager${NO_COLOR}${WHITE}).${NO_COLOR}
+  Reads existing non-empty ${CYAN}<manager>.csv${NO_COLOR}${WHITE} files in \$DEPMANAGER_DIR (defaults to ${CYAN}\$HOME/.config/depmanager${NO_COLOR}${WHITE}).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
   I${WHITE},${NO_COLOR} interactive               ${WHITE}Runs in interactive mode: asks for CSVs path/url, command and flags.${NO_COLOR}
@@ -191,7 +191,7 @@ ${BOLD}${BLUE}Flags:${NO_COLOR}
   -S${WHITE},${NO_COLOR} --simulate               ${WHITE}Answers \`no\` to installation prompts. Implies NOT \`--quiet\`.${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                 ${CYAN}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 
