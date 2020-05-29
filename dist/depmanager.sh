@@ -1,25 +1,34 @@
 #!/usr/bin/env bash
 #
-# Dependencies managment
-# Author: Romain TRUCHI (https://github.com/truchi)
+# depmanager v0.0.1
+# https://github.com/truchi/depmanager
 #
-# # depmanager
+# Usage:
+#   depmanager [-h|--version]
+#   depmanager [-v|--help]
+#   depmanager <cmd> [options] [flags]
 #
-# Checks, diffs, installs or updates your packages.
-# System, NodeJS, Rust.
+# Description:
+#   Manages your packages. (apt, npm)
+#   Reads existing non-empty <manager>.csv files in $DEPMANAGER_DIR (defaults to $HOME/.config/depmanager).
 #
-# # Dependencies
+# Commands:
+#   I, interactive               Runs in interactive mode: asks for CSVs path/url, command and flags.
+#   s, status                    Shows packages local and remote versions.
+#   i, install                   Installs or updates packages.
+#   u, update                    Updates installed packages.
 #
-# bash, wget (remote CSV only)
+# Options:
+#   -a, --apt <path|url|ignore>  Path/Url of the apt CSV file. `ignore` to ignore apt.
+#   -n, --npm <path|url|ignore>  Path/Url of the npm CSV file. `ignore` to ignore npm.
 #
-# # Usage
+# Flags:
+#   -Q, --quiet                  Prints errors only. Implies `--yes`.
+#   -Y, --yes                    Answers `yes` to all prompts. Forced when stdout is not a terminal.
+#   -S, --simulate               Answers `no` to installation prompts. Implies NOT `--quiet`.
 #
-# $ depmanager check --directory ~/my/dir --npm ~/my/npm.csv
-#
-# # Configuration
-#
-# `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
-# Defaults to "$HOME/.config/depmanager"
+# Links:
+#   - Repository                 https://github.com/truchi/depmanager
 
 SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(npm rust)
@@ -601,36 +610,29 @@ print.help() {
   echo "${BOLD}${BLUE}Usage:${NO_COLOR}
   ${BOLD}${GREEN}$cmd${NO_COLOR} [-h|--version]
   ${BOLD}${GREEN}$cmd${NO_COLOR} [-v|--help]
-  ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options|flags]
+  ${BOLD}${GREEN}$cmd${NO_COLOR} <cmd> [options] [flags]
 
 ${BOLD}${BLUE}Description:${NO_COLOR}
-  ${WHITE}Manages your packages.
-
-  List packages you depend on in CSV files.
-  Export \$DEPMANAGER_DIR environment variable (defaults to \$HOME/.config/depmanager).${NO_COLOR}
+  ${WHITE}Manages your packages. (apt, npm)
+  Reads existing non-empty ${MAGENTA}<manager>.csv${NO_COLOR}${WHITE} files in \$DEPMANAGER_DIR (defaults to ${MAGENTA}\$HOME/.config/depmanager${NO_COLOR}${WHITE}).${NO_COLOR}
 
 ${BOLD}${BLUE}Commands:${NO_COLOR}
-  I${WHITE},${NO_COLOR} interactive                  ${WHITE}Runs in interactive mode${NO_COLOR}
-  s${WHITE},${NO_COLOR} status                       ${WHITE}Produces a report with regard to the CSV files${NO_COLOR}
-  i${WHITE},${NO_COLOR} install                      ${WHITE}Installs packages in the CSV files${NO_COLOR}
-  u${WHITE},${NO_COLOR} update                       ${WHITE}Updates packages in the CSV files${NO_COLOR}
+  I${WHITE},${NO_COLOR} interactive               ${WHITE}Runs in interactive mode: asks for CSVs path/url, command and flags.${NO_COLOR}
+  s${WHITE},${NO_COLOR} status                    ${WHITE}Shows packages local and remote versions.${NO_COLOR}
+  i${WHITE},${NO_COLOR} install                   ${WHITE}Installs or updates packages.${NO_COLOR}
+  u${WHITE},${NO_COLOR} update                    ${WHITE}Updates installed packages.${NO_COLOR}
 
 ${BOLD}${BLUE}Options:${NO_COLOR}
-  -a${WHITE},${NO_COLOR} --apt    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
-  -y${WHITE},${NO_COLOR} --yum    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
-  -p${WHITE},${NO_COLOR} --pacman <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
-  -n${WHITE},${NO_COLOR} --npm    <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
-  -r${WHITE},${NO_COLOR} --rust   <path|url|ignore>  ${WHITE}Blah${NO_COLOR}
+  -a${WHITE},${NO_COLOR} --apt <path|url|ignore>  ${WHITE}Path/Url of the apt CSV file. \`ignore\` to ignore apt.${NO_COLOR}
+  -n${WHITE},${NO_COLOR} --npm <path|url|ignore>  ${WHITE}Path/Url of the npm CSV file. \`ignore\` to ignore npm.${NO_COLOR}
 
 ${BOLD}${BLUE}Flags:${NO_COLOR}
-  -Q${WHITE},${NO_COLOR} --quiet                     ${WHITE}Blah${NO_COLOR}
-  -Y${WHITE},${NO_COLOR} --yes                       ${WHITE}Blah${NO_COLOR}
-  -S${WHITE},${NO_COLOR} --simulate                  ${WHITE}Blah${NO_COLOR}
+  -Q${WHITE},${NO_COLOR} --quiet                  ${WHITE}Prints errors only. Implies \`--yes\`.${NO_COLOR}
+  -Y${WHITE},${NO_COLOR} --yes                    ${WHITE}Answers \`yes\` to all prompts. Forced when stdout is not a terminal.${NO_COLOR}
+  -S${WHITE},${NO_COLOR} --simulate               ${WHITE}Answers \`no\` to installation prompts. Implies NOT \`--quiet\`.${NO_COLOR}
 
 ${BOLD}${BLUE}Links:${NO_COLOR}
-  ${WHITE}- Repository${NO_COLOR}                    ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Website${NO_COLOR}                       ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
-  ${WHITE}- Documentation${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
+  ${WHITE}- Repository${NO_COLOR}                 ${MAGENTA}https://github.com/truchi/depmanager${NO_COLOR}
 "
 }
 

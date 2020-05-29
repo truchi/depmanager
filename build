@@ -170,7 +170,6 @@ function array_includes() {
   false
 }
 
-# build src/depmanager.sh dist/depmanager.sh
 build src/depmanager.sh dist/depmanager.sh dist/depmanager.min.sh
 echo "${BOLD}${GREEN}Build complete${NO_COLOR}"
 

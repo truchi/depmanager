@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
 #
-# Dependencies managment
-# Author: Romain TRUCHI (https://github.com/truchi)
+# depmanager v0.0.1
+# https://github.com/truchi/depmanager
 #
-# # depmanager
+# Usage:
+#   depmanager [-h|--version]
+#   depmanager [-v|--help]
+#   depmanager <cmd> [options] [flags]
 #
-# Checks, diffs, installs or updates your packages.
-# System, NodeJS, Rust.
+# Description:
+#   Manages your packages. (apt, npm)
+#   Reads existing non-empty <manager>.csv files in $DEPMANAGER_DIR (defaults to $HOME/.config/depmanager).
 #
-# # Dependencies
+# Commands:
+#   I, interactive               Runs in interactive mode: asks for CSVs path/url, command and flags.
+#   s, status                    Shows packages local and remote versions.
+#   i, install                   Installs or updates packages.
+#   u, update                    Updates installed packages.
 #
-# bash, wget (remote CSV only)
+# Options:
+#   -a, --apt <path|url|ignore>  Path/Url of the apt CSV file. `ignore` to ignore apt.
+#   -n, --npm <path|url|ignore>  Path/Url of the npm CSV file. `ignore` to ignore npm.
 #
-# # Usage
+# Flags:
+#   -Q, --quiet                  Prints errors only. Implies `--yes`.
+#   -Y, --yes                    Answers `yes` to all prompts. Forced when stdout is not a terminal.
+#   -S, --simulate               Answers `no` to installation prompts. Implies NOT `--quiet`.
 #
-# $ depmanager check --directory ~/my/dir --npm ~/my/npm.csv
-#
-# # Configuration
-#
-# `$DEPMANAGER_DIR="/path/to/your/dir"` # No trailing slash
-# Defaults to "$HOME/.config/depmanager"
-
+# Links:
+#   - Repository                 https://github.com/truchi/depmanager
