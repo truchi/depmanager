@@ -14,7 +14,10 @@ managers.npm.version() {
   npm --version
 }
 
-__managers.npm.list.local() {
+#
+# Returns a list of installed packages
+#
+managers.npm.list.local() {
   npm list --global --depth 0 | grep "── "
 }
 

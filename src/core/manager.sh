@@ -60,13 +60,13 @@ core.manager.version() {
 }
 
 #
-# Writes cache for "__managers.${1}.list.local" (if exists)
+# Writes cache for "managers.${1}.list.local" (if exists)
 #
 core.manager.cache_list() {
   local manager="$1"
 
-  if helpers.command_exists "__managers.${manager}.list.local"; then
-    cache "managers_${manager}_list_local" true true "__managers.${manager}.list.local" > /dev/null
+  if helpers.command_exists "managers.${manager}.list.local"; then
+    cache "managers_${manager}_list_local" true true "managers.${manager}.list.local" > /dev/null
   fi
 }
 
