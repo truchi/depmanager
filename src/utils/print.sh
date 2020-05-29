@@ -154,7 +154,7 @@ print.clear.line() {
 }
 
 print.version() {
-  echo "${YELLOW}v0.0.1${NO_COLOR}"
+  echo "${YELLOW}${VERSION}${NO_COLOR}"
 }
 
 print.summary() {

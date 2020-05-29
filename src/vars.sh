@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 
+VERSION="v0.0.1"
+
 SYSTEM_MANAGERS=(apt)
 NON_SYSTEM_MANAGERS=(npm rust)
 MANAGERS=("${SYSTEM_MANAGERS[@]}" "${NON_SYSTEM_MANAGERS[@]}")

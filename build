@@ -11,15 +11,23 @@ CYAN=$(tput setaf 6)
 # WHITE=$(tput setaf 7)
 
 #
-# Builds $1 to $2
+# Builds $1 to $2, minimify to $3
 #
 function build {
-  local src
-  local dest
-  local dest_min=false
-  src=$(realpath "$1")
-  dest=$(realpath "$2")
-  [[ -n "$3" ]] && dest_min=$(realpath "$3")
+  local src="$1"
+  local dest_dir="$2"
+  local minimify="$3"
+
+  src=$(realpath "$src")
+  dest_dir=$(realpath "$dest_dir")
+  [[ -z "$minimify"      ]] && minimify=true
+  [[ "$minimify" == true ]] || minimify=false
+
+  local bname=$(basename "$src")
+  local name="${bname%.*}"
+  local ext="${bname##*.}"
+  local dest="$dest_dir/${name}.${ext}"
+  local dest_min="$dest_dir/${name}.min.${ext}"
 
   echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Building   ${CYAN}$src${NO_COLOR}"
 
@@ -34,7 +42,7 @@ function build {
   output=$(clean_directives "$output")
 
   # Write dest file
-  mkdir -p "$(dirname "$dest")"
+  mkdir -p "$dest_dir"
   echo -e "$output" > "$dest"
   echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built      ${CYAN}$dest${NO_COLOR}"
 
@@ -42,13 +50,12 @@ function build {
   check_errors "$dest"
 
   # Write dest min file
-  if [[ "$dest_min" != false ]]; then
+  if "$minimify"; then
     echo "${BOLD}${BLUE}i${NO_COLOR} ${BLUE}Minifying  ${CYAN}$src${NO_COLOR}"
 
     local output_min
     output_min=$(clean_comments "$output")
 
-    mkdir -p "$(dirname "$dest_min")"
     echo -e "$output_min" > "$dest_min"
     echo "${BOLD}${GREEN}✔${NO_COLOR} ${BLUE}Built      ${CYAN}$dest_min${NO_COLOR}"
 
@@ -86,9 +93,10 @@ function resolve_imports() {
   # Resolve imports in imported files
   for import in "${imports[@]}"; do
     # Beware of the infinite!
-    if ! array_includes "$dir/$import" all_imports[@]; then
-      file_imports[$file]+=" $dir/$import"
-      resolve_imports "$dir/$import"
+    import=$(realpath "$dir/$import")
+    if ! array_includes "$import" all_imports[@]; then
+      file_imports[$file]+=" $import"
+      resolve_imports "$import"
     fi
   done
 }
@@ -170,6 +178,6 @@ function array_includes() {
   false
 }
 
-build src/depmanager.sh dist/depmanager.sh dist/depmanager.min.sh
+build src/depmanager.sh dist "$1"
 echo "${BOLD}${GREEN}Build complete${NO_COLOR}"
 
